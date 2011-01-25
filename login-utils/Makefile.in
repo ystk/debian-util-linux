@@ -103,7 +103,7 @@ PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS) $(sbin_PROGRAMS) \
 	$(usrbin_exec_PROGRAMS) $(usrsbin_exec_PROGRAMS)
 agetty_SOURCES = agetty.c
 agetty_OBJECTS = agetty.$(OBJEXT)
-agetty_LDADD = $(LDADD)
+agetty_DEPENDENCIES =
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
 am__v_lt_0 = --silent
@@ -326,6 +326,7 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
+PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PERL = @PERL@
@@ -431,6 +432,7 @@ ul_libuuid_la = $(top_builddir)/shlibs/uuid/src/libuuid.la
 dist_man_MANS = $(am__append_2) $(am__append_4) $(am__append_6) \
 	$(am__append_10) $(am__append_21) $(am__append_23)
 EXTRA_DIST = README.getty  README.modems-with-agetty  README.poeigl
+@BUILD_AGETTY_TRUE@agetty_LDADD = -lutil
 @BUILD_INIT_TRUE@simpleinit_SOURCES = simpleinit.c my_crypt.h simpleinit.h
 @BUILD_INIT_TRUE@initctl_SOURCES = initctl.c simpleinit.h
 @BUILD_INIT_TRUE@@NEED_LIBCRYPT_TRUE@simpleinit_LDADD = -lcrypt
