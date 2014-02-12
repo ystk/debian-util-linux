@@ -6,27 +6,7 @@ sbin_PROGRAMS =
 usrsbin_exec_PROGRAMS =
 dist_man_MANS =
 
-EXTRA_DIST = README.getty  README.modems-with-agetty  README.poeigl
-
-if BUILD_AGETTY
-sbin_PROGRAMS += agetty
-dist_man_MANS += agetty.8
-endif
-
-if BUILD_INIT
-
-sbin_PROGRAMS += simpleinit shutdown initctl
-dist_man_MANS += fastboot.8 fasthalt.8 halt.8 reboot.8 simpleinit.8 shutdown.8 \
-	initctl.8
-
-simpleinit_SOURCES = simpleinit.c my_crypt.h simpleinit.h
-initctl_SOURCES = initctl.c simpleinit.h
-
-if NEED_LIBCRYPT
-simpleinit_LDADD = -lcrypt
-endif
-
-endif # BUILD_INIT
+EXTRA_DIST = README.poeigl
 
 if BUILD_LAST
 usrbin_exec_PROGRAMS += last
@@ -45,10 +25,9 @@ login_ldadd_common =
 
 chfn_SOURCES = chfn.c $(chfn_chsh_common)
 chsh_SOURCES = chsh.c $(chfn_chsh_common)
-chfn_chsh_common = islocal.c setpwnam.c islocal.h my_crypt.h setpwnam.h \
-	../lib/env.c
-login_SOURCES = login.c login.h my_crypt.h ../lib/setproctitle.c
-newgrp_SOURCES = newgrp.c my_crypt.h
+chfn_chsh_common = islocal.c setpwnam.c islocal.h setpwnam.h \
+	$(top_srcdir)/lib/env.c
+login_SOURCES = login.c login.h $(top_srcdir)/lib/setproctitle.c
 vipw_SOURCES = vipw.c setpwnam.h
 
 chfn_LDADD = $(login_ldadd_common)
@@ -92,43 +71,6 @@ endif
 
 install-exec-hook::
 	cd $(DESTDIR)$(usrsbin_execdir) && ln -sf vipw vigr
-
-endif
-
-if BUILD_MESG
-usrbin_exec_PROGRAMS += mesg
-dist_man_MANS += mesg.1
-endif
-
-if BUILD_WALL
-usrbin_exec_PROGRAMS += wall
-wall_SOURCES = wall.c ttymsg.c ttymsg.h
-dist_man_MANS += wall.1
-
-if USE_TTY_GROUP
-if MAKEINSTALL_DO_CHOWN
-install-exec-hook::
-	chgrp tty $(DESTDIR)$(usrbin_execdir)/wall
-	chmod g+s $(DESTDIR)$(usrbin_execdir)/wall
-endif
-endif
-endif
-
-if BUILD_INIT
-
-install-exec-hook::
-	cd $(DESTDIR)$(sbindir) && ln -sf shutdown reboot
-	cd $(DESTDIR)$(sbindir) && ln -sf shutdown fastboot
-	cd $(DESTDIR)$(sbindir) && ln -sf shutdown halt
-	cd $(DESTDIR)$(sbindir) && ln -sf shutdown fasthalt
-	cd $(DESTDIR)$(sbindir) && ln -sf initctl need
-	cd $(DESTDIR)$(sbindir) && ln -sf initctl display-services
-	cd $(DESTDIR)$(sbindir) && ln -sf initctl provide
-
-install-data-hook:
-	cd $(DESTDIR)$(mandir)/man8 && ln -sf initctl.8 need.8
-	cd $(DESTDIR)$(mandir)/man8 && ln -sf initctl.8 display-services.8
-	cd $(DESTDIR)$(mandir)/man8 && ln -sf initctl.8 provide.8
 
 endif
 

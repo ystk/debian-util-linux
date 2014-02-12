@@ -4,9 +4,10 @@
  * Copyright (C) 2009 Red Hat, Inc. All rights reserved.
  * Written by Karel Zak <kzak@redhat.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it would be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -26,13 +27,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <err.h>
 #include <string.h>
 #include <limits.h>
 
 #include <blkid.h>
 
 #include "nls.h"
+#include "xalloc.h"
+#include "strutils.h"
+#include "writeall.h"
+#include "c.h"
 
 struct wipe_desc {
 	loff_t		offset;		/* magic string offset */
@@ -133,24 +137,6 @@ add_offset(struct wipe_desc *wp0, loff_t offset, int zap)
 	return wp;
 }
 
-static inline void *
-xmalloc(size_t sz)
-{
-	void *x = malloc(sz);
-	if (!x)
-		err(EXIT_FAILURE, _("malloc failed"));
-	return x;
-}
-
-static inline char *
-xstrdup(const char *s)
-{
-	char *x = strdup(s);
-	if (!x)
-		err(EXIT_FAILURE, _("strdup failed"));
-	return x;
-}
-
 static struct wipe_desc *
 get_offset_from_probe(struct wipe_desc *wp, blkid_probe pr, int zap)
 {
@@ -172,7 +158,7 @@ get_offset_from_probe(struct wipe_desc *wp, blkid_probe pr, int zap)
 		wp->usage = xstrdup(usage);
 		wp->type = xstrdup(type);
 
-		wp->magic = xmalloc(wp->len);
+		wp->magic = xmalloc(len);
 		memcpy(wp->magic, mag, len);
 		wp->len = len;
 
@@ -208,7 +194,7 @@ read_offsets(struct wipe_desc *wp, const char *fname, int zap)
 	if (rc == 0) {
 		const char *type = NULL;
 		blkid_probe_lookup_value(pr, "PTTYPE", &type, NULL);
-		errx(EXIT_FAILURE, _("error: %s: appears to contain '%s' "
+		warnx(_("WARNING: %s: appears to contain '%s' "
 				"partition table"), fname, type);
 	}
 
@@ -228,34 +214,15 @@ read_offsets(struct wipe_desc *wp, const char *fname, int zap)
 }
 
 static int
-write_all(int fd, const void *buf, size_t count)
-{
-	while(count) {
-		ssize_t tmp;
-
-		errno = 0;
-		tmp = write(fd, buf, count);
-		if (tmp > 0) {
-			count -= tmp;
-			if (count)
-				buf += tmp;
-		} else if (errno != EINTR && errno != EAGAIN)
-			return -1;
-	}
-	return 0;
-}
-
-static int
 do_wipe_offset(int fd, struct wipe_desc *wp, const char *fname, int noact)
 {
 	char buf[BUFSIZ];
-	int i;
 	off_t l;
-	size_t len;
+	size_t i, len;
 
 	if (!wp->type) {
-		warnx(_("can't found a magic string at offset "
-				"0x%jx - ignore."), wp->offset);
+		warnx(_("no magic string found at offset "
+			"0x%jx -- ignored"), wp->offset);
 		return 0;
 	}
 
@@ -270,7 +237,8 @@ do_wipe_offset(int fd, struct wipe_desc *wp, const char *fname, int noact)
 	if (noact == 0 && write_all(fd, buf, len))
 		err(EXIT_FAILURE, _("%s: write failed"), fname);
 
-	printf(_("%zd bytes ["), wp->len);
+	printf(_("%zd bytes were erased at offset 0x%jx (%s)\nthey were: "),
+	       wp->len, wp->offset, wp->type);
 
 	for (i = 0; i < len; i++) {
 		printf("%02x", wp->magic[i]);
@@ -278,7 +246,7 @@ do_wipe_offset(int fd, struct wipe_desc *wp, const char *fname, int noact)
 			fputc(' ', stdout);
 	}
 
-	printf(_("] erased at offset 0x%jx (%s)\n"), wp->offset, wp->type);
+	printf("\n");
 	return 0;
 }
 
@@ -301,37 +269,48 @@ do_wipe(struct wipe_desc *wp, const char *fname, int noact)
 	return 0;
 }
 
+static void
+free_wipe(struct wipe_desc *wp)
+{
+	while (wp) {
+		struct wipe_desc *next = wp->next;
+
+		free(wp->usage);
+		free(wp->type);
+		free(wp->magic);
+		free(wp->label);
+		free(wp->uuid);
+		free(wp);
+
+		wp = next;
+	}
+}
+
 static loff_t
 strtoll_offset(const char *str)
 {
-	char *end = NULL;
-	loff_t off;
+	uintmax_t sz;
 
-	errno = 0;
-	off = strtoll(str, &end, 0);
-
-	if ((errno == ERANGE && (off == LLONG_MAX || off == LONG_MIN)) ||
-	    (errno != 0 && off == 0))
-		err(EXIT_FAILURE, _("invalid offset '%s' value specified"), str);
-
-	if (*end != '\0')
-		errx(EXIT_FAILURE, _("invalid offset '%s' value specified"), str);
-
-	return off;
+	if (strtosize(str, &sz))
+		errx(EXIT_FAILURE, _("invalid offset value '%s' specified"), str);
+	return sz;
 }
+
 
 static void __attribute__((__noreturn__))
 usage(FILE *out)
 {
-	fprintf(out, _("Usage: %s [options] <device>\n\nOptions:\n"),
-			program_invocation_short_name);
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out,
+	      _(" %s [options] <device>\n"), program_invocation_short_name);
 
-	fprintf(out, _(
-	" -a, --all           wipe all magic strings (BE CAREFUL!)\n"
-	" -h, --help          this help\n"
-	" -n, --no-act        everything to be done except for the write() call\n"
-	" -o, --offset <num>  offset to erase, in bytes\n"
-	" -p, --parsable      print out in parsable instead of printable format\n"));
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -a, --all           wipe all magic strings (BE CAREFUL!)\n"
+		" -h, --help          show this help text\n"
+		" -n, --no-act        do everything except the actual write() call\n"
+		" -o, --offset <num>  offset to erase, in bytes\n"
+		" -p, --parsable      print out in parsable instead of printable format\n"
+		" -V, --version       output version information and exit\n"), out);
 
 	fprintf(out, _("\nFor more information see wipefs(8).\n"));
 
@@ -346,12 +325,13 @@ main(int argc, char **argv)
 	int c, all = 0, has_offset = 0, noact = 0, mode = 0;
 	const char *fname;
 
-	struct option longopts[] = {
+	static const struct option longopts[] = {
 	    { "all",       0, 0, 'a' },
 	    { "help",      0, 0, 'h' },
 	    { "no-act",    0, 0, 'n' },
 	    { "offset",    1, 0, 'o' },
 	    { "parsable",  0, 0, 'p' },
+	    { "version",   0, 0, 'V' },
 	    { NULL,        0, 0, 0 }
 	};
 
@@ -359,7 +339,7 @@ main(int argc, char **argv)
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
-	while ((c = getopt_long(argc, argv, "ahno:p", longopts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "ahno:pV", longopts, NULL)) != -1) {
 		switch(c) {
 		case 'a':
 			all++;
@@ -377,6 +357,10 @@ main(int argc, char **argv)
 		case 'p':
 			mode = WP_MODE_PARSABLE;
 			break;
+		case 'V':
+			printf(_("%s from %s\n"), program_invocation_short_name,
+				PACKAGE_STRING);
+			return EXIT_SUCCESS;
 		default:
 			usage(stderr);
 			break;
@@ -390,6 +374,9 @@ main(int argc, char **argv)
 
 	fname = argv[optind++];
 
+	if (optind != argc)
+		errx(EXIT_FAILURE, _("only one device as argument is currently supported."));
+
 	wp = read_offsets(wp, fname, all);
 
 	if (wp) {
@@ -397,6 +384,8 @@ main(int argc, char **argv)
 			do_wipe(wp, fname, noact);
 		else
 			print_all(wp, mode);
+
+		free_wipe(wp);
 	}
 	return EXIT_SUCCESS;
 }

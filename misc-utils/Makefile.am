@@ -1,23 +1,31 @@
 include $(top_srcdir)/config/include-Makefile.am
 
-EXTRA_DIST = README.flushb uuidd.rc
+EXTRA_DIST = uuidd.rc
 
 bin_PROGRAMS =
 sbin_PROGRAMS =
 usrsbin_exec_PROGRAMS =
 
-usrbin_exec_PROGRAMS = cal ddate logger look mcookie \
-	namei script whereis scriptreplay
-EXTRA_DIST += README.cal README.ddate README.namei README.namei2
+usrbin_exec_PROGRAMS = cal logger look mcookie namei whereis
 
-mcookie_SOURCES = mcookie.c ../lib/md5.c
+EXTRA_DIST += README.cal README.ddate
+
+logger_SOURCES = logger.c $(top_srcdir)/lib/strutils.c
+mcookie_SOURCES = mcookie.c $(top_srcdir)/lib/md5.c
 
 usrbin_exec_SCRIPTS = chkdupexe
 
 CLEANFILES = chkdupexe
 
-dist_man_MANS = cal.1 chkdupexe.1 ddate.1 logger.1 look.1 mcookie.1 \
-	namei.1 script.1 whereis.1 scriptreplay.1
+dist_man_MANS = cal.1 chkdupexe.1 logger.1 look.1 mcookie.1 \
+		namei.1 whereis.1
+
+namei_SOURCES = namei.c $(top_srcdir)/lib/strutils.c
+
+if BUILD_DDATE
+usrbin_exec_PROGRAMS += ddate
+dist_man_MANS += ddate.1
+endif
 
 if BUILD_LIBUUID
 usrbin_exec_PROGRAMS += uuidgen
@@ -35,13 +43,33 @@ endif
 if BUILD_LIBBLKID
 sbin_PROGRAMS += blkid findfs wipefs
 dist_man_MANS += blkid.8 findfs.8 wipefs.8
-blkid_SOURCES = blkid.c $(top_srcdir)/lib/ismounted.c
+blkid_SOURCES = blkid.c $(top_srcdir)/lib/ismounted.c \
+		$(top_srcdir)/lib/strutils.c
 blkid_LDADD = $(ul_libblkid_la)
 blkid_CFLAGS = $(AM_CFLAGS) -I$(ul_libblkid_incdir)
+
 findfs_LDADD = $(ul_libblkid_la)
 findfs_CFLAGS = $(AM_CFLAGS) -I$(ul_libblkid_incdir)
+
+wipefs_SOURCES = wipefs.c $(top_srcdir)/lib/strutils.c
 wipefs_LDADD = $(ul_libblkid_la)
 wipefs_CFLAGS = $(AM_CFLAGS) -I$(ul_libblkid_incdir)
+
+if BUILD_LSBLK
+bin_PROGRAMS += lsblk
+dist_man_MANS += lsblk.8
+lsblk_SOURCES = lsblk.c \
+		$(top_srcdir)/lib/canonicalize.c \
+		$(top_srcdir)/lib/ismounted.c \
+		$(top_srcdir)/lib/tt.c \
+		$(top_srcdir)/lib/mbsalign.c \
+		$(top_srcdir)/lib/strutils.c \
+		$(top_srcdir)/lib/sysfs.c \
+		$(top_srcdir)/lib/at.c
+lsblk_LDADD = $(ul_libblkid_la)
+lsblk_CFLAGS = $(AM_CFLAGS) -I$(ul_libblkid_incdir)
+endif
+
 if HAVE_STATIC_BLKID
 sbin_PROGRAMS += blkid.static
 blkid_static_SOURCES = $(blkid_SOURCES)
@@ -51,6 +79,25 @@ blkid_static_CFLAGS = $(AM_CFLAGS) -I$(ul_libblkid_incdir)
 endif
 endif
 
+if BUILD_LIBMOUNT
+bin_PROGRAMS += findmnt
+dist_man_MANS += findmnt.8
+findmnt_LDADD = $(ul_libmount_la)
+findmnt_CFLAGS = $(AM_CFLAGS) -I$(ul_libmount_incdir)
+findmnt_SOURCES =	findmnt.c \
+			$(top_srcdir)/lib/tt.c \
+			$(top_srcdir)/lib/mbsalign.c \
+			$(top_srcdir)/lib/strutils.c
+
+if !HAVE_LANGINFO
+findmnt_SOURCES += $(top_srcdir)/lib/langinfo.c
+endif
+endif
+
+cal_SOURCES = cal.c $(top_srcdir)/lib/mbsalign.c $(top_srcdir)/lib/strutils.c
+if !HAVE_LANGINFO
+cal_SOURCES += $(top_srcdir)/lib/langinfo.c
+endif
 if HAVE_TINFO
 cal_LDADD = -ltinfo @NCURSES_LIBS@
 else
@@ -63,50 +110,13 @@ endif
 endif
 endif
 
-if HAVE_UTIL
-script_LDADD = -lutil
-endif
-
-if HAVE_NCURSES
-if LINUX
-usrbin_exec_PROGRAMS += setterm
-dist_man_MANS += setterm.1
-endif
-if HAVE_TINFO
-setterm_LDADD = -ltinfo
-else
-setterm_LDADD = @NCURSES_LIBS@
-endif
-endif
-
 if BUILD_KILL
 bin_PROGRAMS += kill
-kill_SOURCES = kill.c procs.c kill.h
+kill_SOURCES = kill.c procs.c kill.h $(top_srcdir)/lib/strutils.c
 dist_man_MANS += kill.1
 endif
 
 if BUILD_RENAME
 usrbin_exec_PROGRAMS += rename
 dist_man_MANS += rename.1
-endif
-
-if BUILD_RESET
-dist_usrbin_exec_SCRIPTS = reset
-dist_man_MANS += reset.1
-endif
-EXTRA_DIST += README.reset reset.033c
-
-if BUILD_WRITE
-usrbin_exec_PROGRAMS += write
-dist_man_MANS += write.1
-write_CFLAGS = $(SUID_CFLAGS) $(AM_CFLAGS)
-write_LDFLAGS = $(SUID_LDFLAGS) $(AM_LDFLAGS)
-
-if USE_TTY_GROUP
-if MAKEINSTALL_DO_CHOWN
-install-exec-hook::
-	chgrp tty $(DESTDIR)$(usrbin_execdir)/write
-	chmod g+s $(DESTDIR)$(usrbin_execdir)/write
-endif
-endif
 endif

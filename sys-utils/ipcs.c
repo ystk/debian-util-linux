@@ -26,7 +26,6 @@
 #include <pwd.h>
 #include <grp.h>
 #include <unistd.h>
-#include <err.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
@@ -34,6 +33,7 @@
 #include <sys/shm.h>
 
 #include "nls.h"
+#include "c.h"
 
 /*-------------------------------------------------------------------*/
 /* SHM_DEST and SHM_LOCKED are defined in kernel headers,
@@ -109,26 +109,41 @@ void print_shm (int id);
 void print_msg (int id);
 void print_sem (int id);
 
-static char *progname;
-
 static void
 usage(int rc) {
-	printf (_("usage : %s -asmq -tclup \n"), progname);
-	printf (_("\t%s [-s -m -q] -i id\n"), progname);
-	printf (_("\t%s -h for help.\n"), progname);
+	printf (_("Usage: %1$s [-asmq] [-t|-c|-l|-u|-p]\n"
+	          "       %1$s [-s|-m|-q] -i id\n"
+	          "       %1$s -h for help\n"),
+		program_invocation_short_name);
 	exit(rc);
 }
 
 static void
 help (int rc) {
-	printf (_("%s provides information on ipc facilities for"
-		  " which you have read access.\n"), progname);
-	printf (_("Resource Specification:\n\t-m : shared_mem\n\t-q : messages\n"));
-	printf (_("\t-s : semaphores\n\t-a : all (default)\n"));
-	printf (_("Output Format:\n\t-t : time\n\t-p : pid\n\t-c : creator\n"));
-	printf (_("\t-l : limits\n\t-u : summary\n"));
-	printf (_("-i id [-s -q -m] : details on resource identified by id\n"));
-	usage(rc);
+	printf (_("Usage: %1$s [resource]... [output-format]\n"
+	          "       %1$s [resource] -i id\n\n"),
+		program_invocation_short_name);
+
+	printf (_("Provide information on IPC facilities for which you "
+		  "have read access.\n\n"));
+
+	printf (_(
+	"    -h      display this help\n"
+	"    -i id   print details on resource identified by id\n\n"));
+
+	printf (_("Resource options:\n"
+	"    -m      shared memory segments\n"
+	"    -q      message queues\n"
+	"    -s      semaphores\n"
+	"    -a      all (default)\n\n"));
+
+	printf (_("Output format:\n"
+	"    -t      time\n"
+	"    -p      pid\n"
+	"    -c      creator\n"
+	"    -l      limits\n"
+	"    -u      summary\n"));
+	exit(rc);
 }
 
 int
@@ -141,7 +156,6 @@ main (int argc, char **argv) {
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
-	progname = argv[0];
 	while ((opt = getopt (argc, argv, options)) != -1) {
 		switch (opt) {
 		case 'i':
@@ -182,14 +196,15 @@ main (int argc, char **argv) {
 		}
 	}
 
+
 	if  (print) {
-		if (shm)
+	        if (shm)
 			print_shm (id);
-		else if (sem)
+		if (sem)
 			print_sem (id);
-		else if (msg)
+		if (msg)
 			print_msg (id);
-		else
+		if (!shm && !sem && !msg )
 			usage (EXIT_FAILURE);
 	} else {
 		if ( !shm && !msg && !sem)
@@ -223,20 +238,20 @@ print_perms (int id, struct ipc_perm *ipcp) {
 	if ((pw = getpwuid(ipcp->cuid)))
 		printf(" %-10s", pw->pw_name);
 	else
-		printf(" %-10d", ipcp->cuid);
+		printf(" %-10u", ipcp->cuid);
 	if ((gr = getgrgid(ipcp->cgid)))
 		printf(" %-10s", gr->gr_name);
 	else
-		printf(" %-10d", ipcp->cgid);
+		printf(" %-10u", ipcp->cgid);
 
 	if ((pw = getpwuid(ipcp->uid)))
 		printf(" %-10s", pw->pw_name);
 	else
-		printf(" %-10d", ipcp->uid);
+		printf(" %-10u", ipcp->uid);
 	if ((gr = getgrgid(ipcp->gid)))
 		printf(" %-10s\n", gr->gr_name);
 	else
-		printf(" %-10d\n", ipcp->gid);
+		printf(" %-10u\n", ipcp->gid);
 }
 
 
@@ -274,11 +289,25 @@ void do_shm (char format)
 
 	case STATUS:
 		printf (_("------ Shared Memory Status --------\n"));
-		printf (_("segments allocated %d\n"), shm_info.used_ids);
-		printf (_("pages allocated %ld\n"), shm_info.shm_tot);
-		printf (_("pages resident  %ld\n"), shm_info.shm_rss);
-		printf (_("pages swapped   %ld\n"), shm_info.shm_swp);
-		printf (_("Swap performance: %ld attempts\t %ld successes\n"),
+		/* TRANSLATORS: This output format is mantained for backward compatibility
+		   as ipcs is used in scripts. For consistency with the rest, the translated
+		   form can follow this model:
+
+		   "segments allocated = %d\n"
+		   "pages allocated = %ld\n"
+		   "pages resident = %ld\n"
+		   "pages swapped = %ld\n"
+		   "swap performance = %ld attempts, %ld successes\n"
+		*/
+		printf (_("segments allocated %d\n"
+		          "pages allocated %ld\n"
+		          "pages resident  %ld\n"
+		          "pages swapped   %ld\n"
+		          "Swap performance: %ld attempts\t %ld successes\n"),
+			shm_info.used_ids,
+			shm_info.shm_tot,
+			shm_info.shm_rss,
+			shm_info.shm_swp,
 			shm_info.swap_attempts, shm_info.swap_successes);
 		return;
 
@@ -296,7 +325,7 @@ void do_shm (char format)
 		break;
 
 	case PID:
-		printf (_("------ Shared Memory Creator/Last-op --------\n"));
+		printf (_("------ Shared Memory Creator/Last-op PIDs --------\n"));
 		printf ("%-10s %-10s %-10s %-10s\n",
 			_("shmid"),_("owner"),_("cpid"),_("lpid"));
 		break;
@@ -323,7 +352,7 @@ void do_shm (char format)
 			if (pw)
 				printf ("%-10d %-10.10s", shmid, pw->pw_name);
 			else
-				printf ("%-10d %-10d", shmid, ipcp->uid);
+				printf ("%-10d %-10u", shmid, ipcp->uid);
 			/* ctime uses static buffer: use separate calls */
 			printf(" %-20.16s", shmseg.shm_atime
 			       ? ctime(&shmseg.shm_atime) + 4 : _("Not set"));
@@ -336,7 +365,7 @@ void do_shm (char format)
 			if (pw)
 				printf ("%-10d %-10.10s", shmid, pw->pw_name);
 			else
-				printf ("%-10d %-10d", shmid, ipcp->uid);
+				printf ("%-10d %-10u", shmid, ipcp->uid);
 			printf (" %-10d %-10d\n",
 				shmseg.shm_cpid, shmseg.shm_lpid);
 			break;
@@ -346,7 +375,7 @@ void do_shm (char format)
 			if (pw)
 				printf ("%-10d %-10.10s", shmid, pw->pw_name);
 			else
-				printf ("%-10d %-10d", shmid, ipcp->uid);
+				printf ("%-10d %-10u", shmid, ipcp->uid);
 			printf (" %-10o %-10lu %-10ld %-6s %-6s\n",
 				ipcp->mode & 0777,
 				/*
@@ -439,7 +468,7 @@ void do_sem (char format)
 			if (pw)
 				printf ("%-8d %-10.10s", semid, pw->pw_name);
 			else
-				printf ("%-8d %-10d", semid, ipcp->uid);
+				printf ("%-8d %-10u", semid, ipcp->uid);
 			printf ("  %-26.24s", semary.sem_otime
 				? ctime(&semary.sem_otime) : _("Not set"));
 			printf (" %-26.24s\n", semary.sem_ctime
@@ -453,7 +482,7 @@ void do_sem (char format)
 			if (pw)
 				printf ("%-10d %-10.10s", semid, pw->pw_name);
 			else
-				printf ("%-10d %-10d", semid, ipcp->uid);
+				printf ("%-10d %-10u", semid, ipcp->uid);
 			printf (" %-10o %-10ld\n",
 				ipcp->mode & 0777,
 				/*
@@ -487,21 +516,21 @@ void do_msg (char format)
 	case LIMITS:
 		if ((msgctl (0, IPC_INFO, (struct msqid_ds *) (void *) &msginfo)) < 0 )
 			return;
-		printf (_("------ Messages: Limits --------\n"));
+		printf (_("------ Messages Limits --------\n"));
 		printf (_("max queues system wide = %d\n"), msginfo.msgmni);
 		printf (_("max size of message (bytes) = %d\n"), msginfo.msgmax);
 		printf (_("default max size of queue (bytes) = %d\n"), msginfo.msgmnb);
 		return;
 
 	case STATUS:
-		printf (_("------ Messages: Status --------\n"));
+		printf (_("------ Messages Status --------\n"));
 		printf (_("allocated queues = %d\n"), msginfo.msgpool);
 		printf (_("used headers = %d\n"), msginfo.msgmap);
 		printf (_("used space = %d bytes\n"), msginfo.msgtql);
 		return;
 
 	case CREATOR:
-		printf (_("------ Message Queues: Creators/Owners --------\n"));
+		printf (_("------ Message Queues Creators/Owners --------\n"));
 		printf ("%-10s %-10s %-10s %-10s %-10s %-10s\n",
 			_("msqid"),_("perms"),_("cuid"),_("cgid"),_("uid"),_("gid"));
 		break;
@@ -540,7 +569,7 @@ void do_msg (char format)
 			if (pw)
 				printf ("%-8d %-10.10s", msqid, pw->pw_name);
 			else
-				printf ("%-8d %-10d", msqid, ipcp->uid);
+				printf ("%-8d %-10u", msqid, ipcp->uid);
 			printf (" %-20.16s", msgque.msg_stime
 				? ctime(&msgque.msg_stime) + 4 : _("Not set"));
 			printf (" %-20.16s", msgque.msg_rtime
@@ -552,7 +581,7 @@ void do_msg (char format)
 			if (pw)
 				printf ("%-8d %-10.10s", msqid, pw->pw_name);
 			else
-				printf ("%-8d %-10d", msqid, ipcp->uid);
+				printf ("%-8d %-10u", msqid, ipcp->uid);
 			printf ("  %5d     %5d\n",
 				msgque.msg_lspid, msgque.msg_lrpid);
 			break;
@@ -562,7 +591,7 @@ void do_msg (char format)
 			if (pw)
 				printf ("%-10d %-10.10s", msqid, pw->pw_name);
 			else
-				printf ("%-10d %-10d", msqid, ipcp->uid);
+				printf ("%-10d %-10u", msqid, ipcp->uid);
 			printf (" %-10o %-12ld %-12ld\n",
 				ipcp->mode & 0777,
 				/*
@@ -589,12 +618,12 @@ void print_shm (int shmid)
 		err(EXIT_FAILURE, _("shmctl failed"));
 
 	printf (_("\nShared memory Segment shmid=%d\n"), shmid);
-	printf (_("uid=%d\tgid=%d\tcuid=%d\tcgid=%d\n"),
+	printf (_("uid=%u\tgid=%u\tcuid=%u\tcgid=%u\n"),
 		ipcp->uid, ipcp->gid, ipcp->cuid, ipcp->cgid);
 	printf (_("mode=%#o\taccess_perms=%#o\n"),
 		ipcp->mode, ipcp->mode & 0777);
-	printf (_("bytes=%ld\tlpid=%d\tcpid=%d\tnattch=%ld\n"),
-		(long) shmds.shm_segsz, shmds.shm_lpid, shmds.shm_cpid,
+	printf (_("bytes=%lu\tlpid=%d\tcpid=%d\tnattch=%ld\n"),
+		(unsigned long) shmds.shm_segsz, shmds.shm_lpid, shmds.shm_cpid,
 		(long) shmds.shm_nattch);
 	printf (_("att_time=%-26.24s\n"),
 		shmds.shm_atime ? ctime (&shmds.shm_atime) : _("Not set"));
@@ -615,7 +644,7 @@ void print_msg (int msqid)
 		err(EXIT_FAILURE, _("msgctl failed"));
 
 	printf (_("\nMessage Queue msqid=%d\n"), msqid);
-	printf (_("uid=%d\tgid=%d\tcuid=%d\tcgid=%d\tmode=%#o\n"),
+	printf (_("uid=%u\tgid=%u\tcuid=%u\tcgid=%u\tmode=%#o\n"),
 		ipcp->uid, ipcp->gid, ipcp->cuid, ipcp->cgid, ipcp->mode);
 	printf (_("cbytes=%ld\tqbytes=%ld\tqnum=%ld\tlspid=%d\tlrpid=%d\n"),
 		/*
@@ -641,14 +670,14 @@ void print_sem (int semid)
 	struct semid_ds semds;
 	struct ipc_perm *ipcp = &semds.sem_perm;
 	union semun arg;
-	int i;
+	size_t i;
 
 	arg.buf = &semds;
 	if (semctl (semid, 0, IPC_STAT, arg) < 0)
 		err(EXIT_FAILURE, _("semctl failed"));
 
 	printf (_("\nSemaphore Array semid=%d\n"), semid);
-	printf (_("uid=%d\t gid=%d\t cuid=%d\t cgid=%d\n"),
+	printf (_("uid=%u\t gid=%u\t cuid=%u\t cgid=%u\n"),
 		ipcp->uid, ipcp->gid, ipcp->cuid, ipcp->cgid);
 	printf (_("mode=%#o, access_perms=%#o\n"),
 		ipcp->mode, ipcp->mode & 0777);
@@ -669,7 +698,7 @@ void print_sem (int semid)
 		if (val < 0 || ncnt < 0 || zcnt < 0 || pid < 0)
 			err(EXIT_FAILURE, _("semctl failed"));
 
-		printf ("%-10d %-10d %-10d %-10d %-10d\n",
+		printf ("%-10zd %-10d %-10d %-10d %-10d\n",
 			i, val, ncnt, zcnt, pid);
 	}
 	printf ("\n");

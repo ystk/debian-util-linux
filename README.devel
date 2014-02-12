@@ -1,23 +1,23 @@
 
- Notes for util-linux-ng developers
- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ Notes for util-linux developers
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 AUTOTOOLS:
 
-     * "./autogen.sh" generates all necessary files (run it after checkout from
-       git)
+     * "./autogen.sh" generates all files needed to compile and install the code
+       (run it after checkout from git)
 
-     * "make distclean" removes all unnecessary files, but code is still possible
-       recompile by "./configure; make"
+     * "make distclean" removes all unnecessary files, but the code can still be
+       recompiled with "./configure; make"
 
-     * "make dist-gzip" (or -bzip2) creates tarball which is possible use without
-      autogen.sh
+     * "make dist-gzip" (or -bzip2) creates a tarball that can be configured and
+       compiled without running "./autogen.sh"
 
 
 PATCHES:
 
-     * send your patches to the mailing list or to upstream maintainer
-       (see the AUTHORS file)
+     * send your patches to the mailing list or to the upstream maintainer
+       (see the AUTHORS and README files)
 
      * diff -u
 
@@ -28,6 +28,10 @@ PATCHES:
        servers is a pain.
 
      * one patch per email, with the changelog in the body of the email.
+
+     * many small patches are favoured over one big. Break down is done on
+       basis of logical functionality; for example #endif mark ups, compiler
+       warning and exit codes fixes all should be individual small patches.
 
      * Subject: [PATCH] subsystem: description
 
@@ -88,7 +92,7 @@ CODING STYLE:
 
 SCM (source code management):
 
-     git clone git://git.kernel.org/pub/scm/utils/util-linux-ng/util-linux-ng.git util-linux-ng
+     git clone git://git.kernel.org/pub/scm/utils/util-linux/util-linux.git util-linux
 
 
     * maintenance (stable) branch

@@ -34,51 +34,57 @@
 .\"
 .\"     @(#)col.1	6.8 (Berkeley) 6/17/91
 .\"
-.Dd June 17, 1991
-.Dt COL 1
-.Os
+.Dd May 2011 "  "
+.Dt COL(1) "" "User Commands"
+.Os util-linux
 .Sh NAME
 .Nm col
 .Nd filter reverse line feeds from input
 .Sh SYNOPSIS
 .Nm col
-.Op Fl bfpx
+.Op Fl bfphx
 .Op Fl l Ar num
 .Sh DESCRIPTION
-.Nm Col
-filters out reverse (and half reverse) line feeds so the output is
-in the correct order with only forward and half forward line
+.Nm
+filters out reverse (and half-reverse) line feeds so the output is
+in the correct order with only forward and half-forward line
 feeds, and replaces white-space characters with tabs where possible.
 This can be useful in processing the output of
 .Xr nroff 1
 and
 .Xr tbl  1 .
 .Pp
-.Nm Col
+.Nm
 reads from standard input and writes to standard output.
 .Pp
 The options are as follows:
 .Bl -tag -width "-lnum"
-.It Fl b
+.It Fl b, Fl Fl no-backspaces
 Do not output any backspaces, printing only the last character
 written to each column position.
-.It Fl f
+.It Fl f, Fl Fl fine
 Forward half line feeds are permitted (``fine'' mode).
-Normally characters printed on a half line boundary are printed
+Normally characters printed on a half-line boundary are printed
 on the following line.
-.It Fl p
+.It Fl p, Fl Fl pass
 Force unknown control sequences to be passed through unchanged.
 Normally,
 .Nm col
 will filter out any control sequences from the input other than those
 recognized and interpreted by itself, which are listed below.
-.It Fl x
+.It Fl h, Fl Fl tabs
+Output tabs instead of multiple spaces.
+.It Fl x, Fl Fl spaces
 Output multiple spaces instead of tabs.
-.It Fl l Ns Ar num
+.It Fl l, Fl Fl lines Ar num
 Buffer at least
 .Ar num
 lines in memory.
 By default, 128 lines are buffered.
+.It Fl V, Fl Fl version
+Output version information and exit.
+.It Fl H, Fl Fl help
+Output help and exit.
 .El
 .Pp
 The control sequences for carriage motion that
@@ -114,7 +120,7 @@ reverse line feed (11)
 All unrecognized control characters and escape sequences are
 discarded.
 .Pp
-.Nm Col
+.Nm
 keeps track of the character set as characters are read and makes
 sure the character set is correct when they are output.
 .Pp
@@ -137,5 +143,5 @@ A
 command
 appeared in Version 6 AT&T UNIX.
 .Sh AVAILABILITY
-The col command is part of the util-linux-ng package and is available from
-ftp://ftp.kernel.org/pub/linux/utils/util-linux-ng/.
+The col command is part of the util-linux package and is available from
+ftp://ftp.kernel.org/pub/linux/utils/util-linux/.

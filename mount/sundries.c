@@ -14,7 +14,6 @@
 
 #include "canonicalize.h"
 
-#include "fstab.h"
 #include "sundries.h"
 #include "xmalloc.h"
 #include "nls.h"
@@ -115,8 +114,8 @@ error (const char *fmt, ...) {
 }
 
 /* Fatal error.  Print message and exit.  */
-void
-die(int err, const char *fmt, ...) {
+void __attribute__ ((noreturn)) die(int err, const char *fmt, ...)
+{
 	va_list args;
 
 	va_start(args, fmt);
@@ -218,6 +217,8 @@ matching_opts (const char *options, const char *test_opts) {
 
      if (test_opts == NULL)
 	  return 1;
+     if (options == NULL)
+	  options = "";
 
      len = strlen(test_opts);
      q = alloca(len+1);
@@ -256,7 +257,9 @@ is_pseudo_fs(const char *type)
 	    streq(type, "cgroup") ||
 	    streq(type, "cpuset") ||
 	    streq(type, "rpc_pipefs") ||
-	    streq(type, "devpts"))
+	    streq(type, "devpts") ||
+	    streq(type, "securityfs") ||
+	    streq(type, "debugfs"))
 		return 1;
 	return 0;
 }

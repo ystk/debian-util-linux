@@ -63,6 +63,7 @@
 #endif
 #endif
 
+#include "xalloc.h"
 #include "nls.h"
 				/* Until it gets put in the kernel,
 				   toggle by hand. */
@@ -97,11 +98,9 @@ static char ***global_argv;
 static void
 summary(int sig) {
   struct cyclades_control *cc;
-
   int argc, local_optind;
   char **argv;
-
-  int i,j;
+  int i;
 
   argc = global_argc;
   argv = *global_argv;
@@ -109,7 +108,6 @@ summary(int sig) {
 
   if (sig > 0) {
     for(i = local_optind; i < argc; i ++) {
-      j = i - local_optind;
       cc = &cmon[cmon_index];
       fprintf(stderr, _("File %s, For threshold value %lu, Maximum characters in fifo were %d,\nand the maximum transfer rate in characters/second was %f\n"), 
 	      argv[i],
@@ -315,12 +313,8 @@ int main(int argc, char *argv[]) {
 
   /* query stuff after this line */
   
-  cmon = (struct cyclades_control *) malloc(sizeof (struct cyclades_control)
-					    * numfiles);
-  if(!cmon) {
-    perror(_("malloc failed"));
-    exit(1);
-  }
+  cmon = xmalloc(sizeof(struct cyclades_control) * numfiles);
+
   if(signal(SIGINT, summary)||
      signal(SIGQUIT, summary)||
      signal(SIGTERM, summary)) {
@@ -410,7 +404,8 @@ int main(int argc, char *argv[]) {
 	if(xmit_rate > cmon[cmon_index].maxxmit)
           cmon[cmon_index].maxxmit = xmit_rate;
 #endif
-	if(cywork.char_max > cmon[cmon_index].maxmax) 
+	if(cmon[cmon_index].maxmax < 0 ||
+	   cywork.char_max > (unsigned long) cmon[cmon_index].maxmax)
 	  cmon[cmon_index].maxmax = cywork.char_max;
       }
 

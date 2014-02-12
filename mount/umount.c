@@ -20,6 +20,7 @@
 #include "fstab.h"
 #include "env.h"
 #include "nls.h"
+#include "strutils.h"
 
 #if defined(MNT_FORCE)
 /* Interesting ... it seems libc knows about MNT_FORCE and presumably
@@ -44,15 +45,22 @@ umount2(const char *path, int flags) {
 }
 #endif /* __NR_umount2 */
 
-#if !defined(MNT_FORCE)
-/* dare not try to include <linux/mount.h> -- lots of errors */
-#define MNT_FORCE 1
+#ifndef MNT_FORCE
+# define MNT_FORCE        0x00000001	/* Attempt to forcibily umount */
 #endif
 
 #endif /* MNT_FORCE */
 
-#if !defined(MNT_DETACH)
-#define MNT_DETACH 2
+#ifndef MNT_DETACH
+# define MNT_DETACH       0x00000002	/* Just detach from the tree */
+#endif
+
+#ifndef UMOUNT_NOFOLLOW
+# define UMOUNT_NOFOLLOW  0x00000008	/* Don't follow symlink on umount */
+#endif
+
+#ifndef UMOUNT_UNUSED
+# define UMOUNT_UNUSED    0x80000000	/* Flag guaranteed to be unused */
 #endif
 
 
@@ -81,13 +89,16 @@ int restricted = 1;
 int complained_err = 0;
 char *complained_dev = NULL;
 
+/* True for fake umount (--fake).  */
+static int fake = 0;
+
 /*
  * check_special_umountprog()
  *	If there is a special umount program for this type, exec it.
  * returns: 0: no exec was done, 1: exec was done, status has result
  */
 static int
-check_special_umountprog(const char *spec, const char *node,
+check_special_umountprog(const char *node,
 			 const char *type, int *status) {
 	char umountprog[120];
 	struct stat statbuf;
@@ -100,11 +111,20 @@ check_special_umountprog(const char *spec, const char *node,
 		return 0;
 
 	if (strlen(type) < 100) {
+		int type_opt = 0;
+
 		sprintf(umountprog, "/sbin/umount.%s", type);
-		if (stat(umountprog, &statbuf) == 0) {
+		res = stat(umountprog, &statbuf);
+		if (res == -1 && errno == ENOENT && strchr(type, '.')) {
+			/* If type ends with ".subtype" try without it */
+			*strrchr(umountprog, '.') = '\0';
+			type_opt = 1;
+			res = stat(umountprog, &statbuf);
+		}
+		if (res == 0) {
 			res = fork();
 			if (res == 0) {
-				char *umountargs[8];
+				char *umountargs[10];
 				int i = 0;
 
 				if(setgid(getgid()) < 0)
@@ -125,6 +145,10 @@ check_special_umountprog(const char *spec, const char *node,
 					umountargs[i++] = "-v";
 				if (remount)
 					umountargs[i++] = "-r";
+				if (type_opt) {
+					umountargs[i++] = "-t";
+					umountargs[i++] = (char *) type;
+				}
 				umountargs[i] = NULL;
 				execv(umountprog, umountargs);
 				exit(1);	/* exec failed */
@@ -180,16 +204,73 @@ static void complain(int err, const char *dev) {
   }
 }
 
+/* Check whether the kernel supports UMOUNT_NOFOLLOW flag */
+static int umount_nofollow_support(void)
+{
+	int res = umount2("", UMOUNT_UNUSED);
+	if (res != -1 || errno != EINVAL)
+		return 0;
+
+	res = umount2("", UMOUNT_NOFOLLOW);
+	if (res != -1 || errno != ENOENT)
+		return 0;
+
+	return 1;
+}
+
+static const char *chdir_to_parent(const char *node, char **resbuf)
+{
+	char *tmp, *res;
+	const char *parent;
+	char buf[65536];
+
+	*resbuf = xstrdup(node);
+
+	tmp = strrchr(*resbuf, '/');
+	if (!tmp)
+		die (2, _("umount: internal error: invalid abs path: %s"), node);
+
+	if (tmp != *resbuf) {
+		*tmp = '\0';
+		res = tmp + 1;
+		parent = *resbuf;
+	} else if (tmp[1] != '\0') {
+		res = tmp + 1;
+		parent = "/";
+	} else {
+		res = ".";
+		parent = "/";
+	}
+
+	if (chdir(parent) == -1)
+		die (2, _("umount: failed to chdir to %s: %s"),
+					parent, strerror(errno));
+
+	if (!getcwd(buf, sizeof(buf)))
+		die (2, _("umount: failed to obtain current directory: %s"),
+			strerror(errno));
+
+	if (strcmp(buf, parent) != 0)
+		die (2, _("umount: mountpoint moved (%s -> %s)"), parent, buf);
+
+	if (verbose)
+		printf(_("current directory moved to %s\n"), res);
+
+	return res;
+}
+
 /* Umount a single device.  Return a status code, so don't exit
    on a non-fatal error.  We lock/unlock around each umount.  */
 static int
 umount_one (const char *spec, const char *node, const char *type,
-	    const char *opts, struct mntentchn *mc) {
+	    struct mntentchn *mc) {
 	int umnt_err = 0;
 	int isroot;
-	int res;
+	int res = 0;
 	int status;
-	const char *loopdev;
+	int extra_flags = 0;
+	const char *loopdev, *target = node;
+	char *targetbuf = NULL;
 	int myloop = 0;
 
 	/* Special case for root.  As of 0.99pl10 we can (almost) unmount root;
@@ -207,25 +288,38 @@ umount_one (const char *spec, const char *node, const char *type,
 	 * Call umount.TYPE for types that require a separate umount program.
 	 * All such special things must occur isolated in the types string.
 	 */
-	if (check_special_umountprog(spec, node, type, &status))
+	if (check_special_umountprog(node, type, &status))
 		return status;
 
+	block_signals(SIG_BLOCK);
+
+	/* Skip the actual umounting for --fake */
+	if (fake)
+		goto writemtab;
 	/*
 	 * Ignore the option "-d" for non-loop devices and loop devices with
 	 * LO_FLAGS_AUTOCLEAR flag.
 	 */
-	if (delloop && is_loop_device(spec) && !is_loop_autoclear(spec))
+	if (delloop && is_loop_device(spec))
 		myloop = 1;
 
+	if (restricted) {
+		if (umount_nofollow_support())
+			extra_flags |= UMOUNT_NOFOLLOW;
+
+		/* call umount(2) with relative path to avoid races */
+		target = chdir_to_parent(node, &targetbuf);
+	}
+
 	if (lazy) {
-		res = umount2 (node, MNT_DETACH);
+		res = umount2 (target, MNT_DETACH | extra_flags);
 		if (res < 0)
 			umnt_err = errno;
 		goto writemtab;
 	}
 
 	if (force) {		/* only supported for NFS */
-		res = umount2 (node, MNT_FORCE);
+		res = umount2 (target, MNT_FORCE | extra_flags);
 		if (res == -1) {
 			int errsv = errno;
 			perror("umount2");
@@ -233,11 +327,15 @@ umount_one (const char *spec, const char *node, const char *type,
 			if (errno == ENOSYS) {
 				if (verbose)
 					printf(_("no umount2, trying umount...\n"));
-				res = umount (node);
+				res = umount (target);
 			}
 		}
-	} else
-		res = umount (node);
+	} else if (extra_flags)
+		res = umount2 (target, extra_flags);
+	else
+		res = umount (target);
+
+	free(targetbuf);
 
 	if (res < 0)
 		umnt_err = errno;
@@ -247,15 +345,21 @@ umount_one (const char *spec, const char *node, const char *type,
 		res = mount(spec, node, NULL,
 			    MS_MGC_VAL | MS_REMOUNT | MS_RDONLY, NULL);
 		if (res == 0) {
-			struct my_mntent remnt;
 			fprintf(stderr,
 				_("umount: %s busy - remounted read-only\n"),
 				spec);
-			remnt.mnt_type = remnt.mnt_fsname = NULL;
-			remnt.mnt_dir = xstrdup(node);
-			remnt.mnt_opts = xstrdup("ro");
-			if (!nomtab)
+			if (mc && !nomtab) {
+				/* update mtab if the entry is there */
+				struct my_mntent remnt;
+				remnt.mnt_fsname = mc->m.mnt_fsname;
+				remnt.mnt_dir = mc->m.mnt_dir;
+				remnt.mnt_type = mc->m.mnt_type;
+				remnt.mnt_opts = "ro";
+				remnt.mnt_freq = 0;
+				remnt.mnt_passno = 0;
 				update_mtab(node, &remnt);
+			}
+			block_signals(SIG_UNBLOCK);
 			return 0;
 		} else if (errno != EBUSY) { 	/* hmm ... */
 			perror("remount");
@@ -269,7 +373,7 @@ umount_one (const char *spec, const char *node, const char *type,
 	if (res >= 0) {
 		/* Umount succeeded */
 		if (verbose)
-			printf (_("%s umounted\n"), spec);
+			printf (_("%s has been unmounted\n"), spec);
 
 		/* Free any loop devices that we allocated ourselves */
 		if (mc) {
@@ -304,14 +408,25 @@ umount_one (const char *spec, const char *node, const char *type,
 			loopdev = spec;
 	}
  gotloop:
-	if (loopdev)
+	if (loopdev && !is_loop_autoclear(loopdev))
 		del_loop(loopdev);
 
  writemtab:
 	if (!nomtab &&
 	    (umnt_err == 0 || umnt_err == EINVAL || umnt_err == ENOENT)) {
+#ifdef HAVE_LIBMOUNT_MOUNT
+		struct libmnt_update *upd = mnt_new_update();
+
+		if (upd && !mnt_update_set_fs(upd, 0, node, NULL))
+			mnt_update_table(upd, NULL);
+
+		mnt_free_update(upd);
+#else
 		update_mtab (node, NULL);
+#endif
 	}
+
+	block_signals(SIG_UNBLOCK);
 
 	if (res >= 0)
 		return 0;
@@ -340,13 +455,13 @@ umount_one_bw (const char *file, struct mntentchn *mc0) {
 	mc = mc0;
 	while (res && mc) {
 		res = umount_one(mc->m.mnt_fsname, mc->m.mnt_dir,
-				 mc->m.mnt_type, mc->m.mnt_opts, mc);
+				 mc->m.mnt_type, mc);
 		mc = getmntdirbackward(file, mc);
 	}
 	mc = mc0;
 	while (res && mc) {
 		res = umount_one(mc->m.mnt_fsname, mc->m.mnt_dir,
-				 mc->m.mnt_type, mc->m.mnt_opts, mc);
+				 mc->m.mnt_type, mc);
 		mc = getmntdevbackward(file, mc);
 	}
 	return res;
@@ -369,11 +484,10 @@ umount_all (char *types, char *test_opts) {
 	  if (matching_type (mc->m.mnt_type, types)
 	      && matching_opts (mc->m.mnt_opts, test_opts)) {
 	       errors |= umount_one (mc->m.mnt_fsname, mc->m.mnt_dir,
-				     mc->m.mnt_type, mc->m.mnt_opts, mc);
+				     mc->m.mnt_type, mc);
 	  }
      }
 
-     sync ();
      return errors;
 }
 
@@ -390,6 +504,7 @@ static struct option longopts[] =
   { "types", 1, 0, 't' },
 
   { "no-canonicalize", 0, 0, 144 },
+  { "fake", 0, 0, 145 },
   { NULL, 0, 0, 0 }
 };
 
@@ -418,33 +533,13 @@ contains(const char *list, const char *s) {
 	return 0;
 }
 
-/*
- * If list contains "user=peter" and we ask for "user=", return "peter"
- */
-static char *
-get_value(const char *list, const char *s) {
-	const char *t;
-	int n = strlen(s);
-
-	while (list && *list) {
-		if (strncmp(list, s, n) == 0) {
-			s = t = list+n;
-			while (*s && *s != ',')
-				s++;
-			return xstrndup(t, s-t);
-		}
-		while (*list && *list++ != ',') ;
-	}
-	return NULL;
-}
-
 /* check if @mc contains a loop device which is associated
  * with the @file in fs
  */
 static int
 is_valid_loop(struct mntentchn *mc, struct mntentchn *fs)
 {
-	unsigned long long offset = 0;
+	uintmax_t offset = 0;
 	char *p;
 
 	/* check if it begins with /dev/loop */
@@ -457,9 +552,12 @@ is_valid_loop(struct mntentchn *mc, struct mntentchn *fs)
 		return 0;
 
 	/* check for offset option in fstab */
-	p = get_value(fs->m.mnt_opts, "offset=");
-	if (p)
-		offset = strtoull(p, NULL, 10);
+	p = get_option_value(fs->m.mnt_opts, "offset=");
+	if (p && strtosize(p, &offset)) {
+		if (verbose > 1)
+			printf(_("failed to parse 'offset=%s' options\n"), p);
+		return 0;
+	}
 
 	/* check association */
 	if (loopfile_used_with((char *) mc->m.mnt_fsname,
@@ -476,27 +574,51 @@ is_valid_loop(struct mntentchn *mc, struct mntentchn *fs)
 	return 0;
 }
 
+/*
+ * umount helper call based on {u,p}helper= mount option
+ */
+static int check_helper_umountprog(const char *node,
+				   const char *opts, const char *name,
+				   int *status)
+{
+	char *helper;
+
+	if (!external_allowed || !opts)
+		return 0;
+
+	helper = get_option_value(opts, name);
+	if (helper)
+		return check_special_umountprog(node, helper, status);
+
+	return 0;
+}
+
 static int
 umount_file (char *arg) {
 	struct mntentchn *mc, *fs;
 	const char *file, *options;
 	int fstab_has_user, fstab_has_users, fstab_has_owner, fstab_has_group;
-	int ok;
+	int ok, status = 0;
+	struct stat statbuf;
+	char *loopdev = NULL;
 
 	if (!*arg) {		/* "" would be expanded to `pwd` */
-		die(2, _("Cannot umount \"\"\n"));
+		die(2, _("Cannot unmount \"\"\n"));
 		return 0;
 	}
 
 	file = canonicalize(arg); /* mtab paths are canonicalized */
+
+try_loopdev:
 	if (verbose > 1)
-		printf(_("Trying to umount %s\n"), file);
+		printf(_("Trying to unmount %s\n"), file);
 
 	mc = getmntdirbackward(file, NULL);
 	if (!mc) {
 		mc = getmntdevbackward(file, NULL);
 		if (mc) {
 			struct mntentchn *mc1;
+			char *cn;
 
 			mc1 = getmntdirbackward(mc->m.mnt_dir, NULL);
 			if (!mc1)
@@ -505,17 +627,48 @@ umount_file (char *arg) {
 				die(EX_SOFTWARE,
 				    _("umount: confused when analyzing mtab"));
 
-			if (strcmp(file, mc1->m.mnt_fsname)) {
+			cn = canonicalize(mc1->m.mnt_fsname);
+			if (cn && strcmp(file, cn)) {
 				/* Something was stacked over `file' on the
 				   same mount point. */
-				die(EX_FAIL, _("umount: cannot umount %s -- %s is "
-				    "mounted over it on the same point."),
+				die(EX_FAIL, _("umount: cannot unmount %s -- %s is "
+				    "mounted over it on the same point"),
 				    file, mc1->m.mnt_fsname);
 			}
+			free(cn);
 		}
 	}
 	if (!mc && verbose)
 		printf(_("Could not find %s in mtab\n"), file);
+
+	/* not found in mtab - check if it is associated with some loop device
+	 * (only if it is a regular file)
+	 */
+	if (!mc && !loopdev && !stat(file, &statbuf) && S_ISREG(statbuf.st_mode)) {
+		switch (find_loopdev_by_backing_file(file, &loopdev)) {
+		case 0:
+			if (verbose)
+				printf(_("%s is associated with %s\n"),
+				       arg, loopdev);
+			file = loopdev;
+			goto try_loopdev;
+			break;
+		case 2:
+			if (verbose)
+				printf(_("%s is associated with more than one loop device: not unmounting\n"),
+				       arg);
+			break;
+		}
+	}
+
+	if (mc) {
+		/*
+		 * helper - umount helper (e.g. pam_mount)
+		 */
+		 if (check_helper_umountprog(arg, mc->m.mnt_opts,
+					    "helper=", &status))
+			return status;
+	}
 
 	if (restricted) {
 		char *mtab_user = NULL;
@@ -525,21 +678,11 @@ umount_file (char *arg) {
 			    _("umount: %s is not mounted (according to mtab)"),
 			    file);
 		/*
-		 * uhelper - unprivileged umount helper
-		 * -- external umount (for example HAL mounts)
+		 * uhelper - unprivileged umount helper (e.g. HAL/udisks mounts)
 		 */
-		if (external_allowed) {
-			char *uhelper = NULL;
-
-			if (mc->m.mnt_opts)
-				uhelper = get_value(mc->m.mnt_opts, "uhelper=");
-			if (uhelper) {
-				int status = 0;
-				if (check_special_umountprog(arg, arg,
-							uhelper, &status))
-					return status;
-			}
-		}
+		if (check_helper_umountprog(arg, mc->m.mnt_opts,
+					    "uhelper=", &status))
+			return status;
 
 		/* The 2.4 kernel will generally refuse to mount the same
 		   filesystem on the same mount point, but will accept NFS.
@@ -565,7 +708,7 @@ umount_file (char *arg) {
 				     file);
 
 			/* spec could be a file which is loop mounted */
-			if (fs && !is_valid_loop(mc, fs))
+			if (!fs || !is_valid_loop(mc, fs))
 				die (2, _("umount: %s mount disagrees with "
 					  "the fstab"), file);
 		}
@@ -601,7 +744,7 @@ umount_file (char *arg) {
 			options = mc->m.mnt_opts;
 			if (!options)
 				options = "";
-			mtab_user = get_value(options, "user=");
+			mtab_user = get_option_value(options, "user=");
 
 			if (user && mtab_user && streq (user, mtab_user))
 				ok = 1;
@@ -610,12 +753,13 @@ umount_file (char *arg) {
 			die (2, _("umount: only %s can unmount %s from %s"),
 			     mtab_user ? mtab_user : "root",
 			     fs->m.mnt_fsname, fs->m.mnt_dir);
+
 	}
 
 	if (mc)
 		return umount_one_bw (file, mc);
 	else
-		return umount_one (arg, arg, arg, arg, NULL);
+		return umount_one (arg, arg, arg, NULL);
 }
 
 int
@@ -679,6 +823,9 @@ main (int argc, char *argv[]) {
 		case 144:
 			nocanonicalize = 1;
 			break;
+		case 145:
+			fake = 1;
+			break;
 		case 0:
 			break;
 		case '?':
@@ -697,7 +844,8 @@ main (int argc, char *argv[]) {
 	}
 
 	if (restricted &&
-	    (all || types || nomtab || force || remount || nocanonicalize)) {
+	    (all || types || nomtab || force || remount || nocanonicalize ||
+	     fake)) {
 		die (2, _("umount: only root can do that"));
 	}
 
@@ -706,6 +854,9 @@ main (int argc, char *argv[]) {
 
 	atexit(unlock_mtab);
 
+#ifdef HAVE_LIBMOUNT_MOUNT
+	mnt_init_debug(0);
+#endif
 	if (all) {
 		/* nodev stuff: sysfs, usbfs, oprofilefs, ... */
 		if (types == NULL)

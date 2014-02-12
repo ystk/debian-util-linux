@@ -2,7 +2,7 @@
 #
 # Copyright (C) 2008 Cai Qian <qcai@redhat.com>
 #
-# This file is part of util-linux-ng.
+# This file is part of util-linux.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@ for dump in $(ls $TS_SELF/dumps/*.tar.gz | sort); do
 
 	"${TS_CMD_LSCPU}" -p -s "${dumpdir}/${name}" \
 		 >>"${TS_OUTPUT}" 2>&1
+
+	# LE/BE depends on binary
+	sed -i -e '/Byte Order:.*/d' $TS_OUTPUT
 
 	ts_finalize_subtest
 done

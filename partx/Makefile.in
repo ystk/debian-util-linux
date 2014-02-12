@@ -35,12 +35,11 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-DIST_COMMON = $(am__dist_noinst_DATA_DIST) $(dist_man_MANS) \
+DIST_COMMON = $(dist_man_MANS) $(dist_noinst_DATA) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(top_srcdir)/config/include-Makefile.am
-@BUILD_PARTX_TRUE@usrsbin_exec_PROGRAMS = addpart$(EXEEXT) \
-@BUILD_PARTX_TRUE@	delpart$(EXEEXT) partx$(EXEEXT)
-@BUILD_PARTX_TRUE@@LINUX_TRUE@am__append_1 = ../lib/linux_version.c
+usrsbin_exec_PROGRAMS = addpart$(EXEEXT) delpart$(EXEEXT) \
+	partx$(EXEEXT)
 subdir = partx
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
@@ -70,17 +69,15 @@ am__v_lt_0 = --silent
 delpart_SOURCES = delpart.c
 delpart_OBJECTS = delpart.$(OBJEXT)
 delpart_LDADD = $(LDADD)
-am__partx_SOURCES_DIST = bsd.c dos.c partx.c solaris.c unixware.c \
-	gpt.c crc32.c efi.h gpt.h crc32.h partx.h dos.h \
-	../lib/blkdev.c ../lib/linux_version.c
-@BUILD_PARTX_TRUE@@LINUX_TRUE@am__objects_1 = linux_version.$(OBJEXT)
-@BUILD_PARTX_TRUE@am_partx_OBJECTS = bsd.$(OBJEXT) dos.$(OBJEXT) \
-@BUILD_PARTX_TRUE@	partx.$(OBJEXT) solaris.$(OBJEXT) \
-@BUILD_PARTX_TRUE@	unixware.$(OBJEXT) gpt.$(OBJEXT) \
-@BUILD_PARTX_TRUE@	crc32.$(OBJEXT) blkdev.$(OBJEXT) \
-@BUILD_PARTX_TRUE@	$(am__objects_1)
+am_partx_OBJECTS = partx-partx.$(OBJEXT) partx-blkdev.$(OBJEXT) \
+	partx-sysfs.$(OBJEXT) partx-tt.$(OBJEXT) partx-at.$(OBJEXT) \
+	partx-mbsalign.$(OBJEXT) partx-strutils.$(OBJEXT) \
+	partx-linux_version.$(OBJEXT)
 partx_OBJECTS = $(am_partx_OBJECTS)
-partx_LDADD = $(LDADD)
+partx_DEPENDENCIES = $(ul_libblkid_la)
+partx_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(partx_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -108,7 +105,7 @@ AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = addpart.c delpart.c $(partx_SOURCES)
-DIST_SOURCES = addpart.c delpart.c $(am__partx_SOURCES_DIST)
+DIST_SOURCES = addpart.c delpart.c $(partx_SOURCES)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -133,7 +130,6 @@ am__base_list = \
 man8dir = $(mandir)/man8
 NROFF = nroff
 MANS = $(dist_man_MANS)
-am__dist_noinst_DATA_DIST = addpart.8 delpart.8 partx.8
 DATA = $(dist_noinst_DATA)
 ETAGS = etags
 CTAGS = ctags
@@ -146,9 +142,6 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BLKID_CFLAGS = @BLKID_CFLAGS@
-BLKID_LIBS = @BLKID_LIBS@
-BLKID_LIBS_STATIC = @BLKID_LIBS_STATIC@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
@@ -157,6 +150,7 @@ CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DLLTOOL = @DLLTOOL@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -182,6 +176,8 @@ LIBBLKID_VERSION = @LIBBLKID_VERSION@
 LIBBLKID_VERSION_INFO = @LIBBLKID_VERSION_INFO@
 LIBICONV = @LIBICONV@
 LIBINTL = @LIBINTL@
+LIBMOUNT_VERSION = @LIBMOUNT_VERSION@
+LIBMOUNT_VERSION_INFO = @LIBMOUNT_VERSION_INFO@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -193,6 +189,7 @@ LTLIBICONV = @LTLIBICONV@
 LTLIBINTL = @LTLIBINTL@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
+MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
 MKINSTALLDIRS = @MKINSTALLDIRS@
 MSGFMT = @MSGFMT@
@@ -209,10 +206,13 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
+PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PERL = @PERL@
 PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
 RANLIB = @RANLIB@
 SED = @SED@
@@ -220,12 +220,11 @@ SELINUX_LIBS = @SELINUX_LIBS@
 SELINUX_LIBS_STATIC = @SELINUX_LIBS_STATIC@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SOCKET_LIBS = @SOCKET_LIBS@
 STRIP = @STRIP@
 SUID_CFLAGS = @SUID_CFLAGS@
 SUID_LDFLAGS = @SUID_LDFLAGS@
 USE_NLS = @USE_NLS@
-UUID_CFLAGS = @UUID_CFLAGS@
-UUID_LIBS = @UUID_LIBS@
 VERSION = @VERSION@
 XGETTEXT = @XGETTEXT@
 XSLTPROC = @XSLTPROC@
@@ -233,6 +232,7 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
+ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
@@ -266,7 +266,6 @@ libdirname = @libdirname@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -300,22 +299,37 @@ dist_noinst_DATA = $(dist_man_MANS)
 # Paths to in-tree libraries (use ul_ prefix to avoid possible collisions)
 #
 # blkid
-ul_libblkid_srcdir = $(top_srcdir)/shlibs/blkid/src
-ul_libblkid_builddir = $(top_builddir)/shlibs/blkid/src
-ul_libblkid_la = $(top_builddir)/shlibs/blkid/src/libblkid.la
+ul_libblkid_srcdir = $(top_srcdir)/libblkid/src
+ul_libblkid_builddir = $(top_builddir)/libblkid/src
+ul_libblkid_la = $(top_builddir)/libblkid/src/libblkid.la
 
 # blkid.h is generated by ./configure script and stored in build directory
 ul_libblkid_incdir = $(ul_libblkid_builddir)
 
 # uuid
-ul_libuuid_srcdir = $(top_srcdir)/shlibs/uuid/src
-ul_libuuid_builddir = $(top_builddir)/shlibs/uuid/src
-ul_libuuid_la = $(top_builddir)/shlibs/uuid/src/libuuid.la
-@BUILD_PARTX_TRUE@partx_SOURCES = bsd.c dos.c partx.c solaris.c \
-@BUILD_PARTX_TRUE@	unixware.c gpt.c crc32.c efi.h gpt.h crc32.h \
-@BUILD_PARTX_TRUE@	partx.h dos.h ../lib/blkdev.c \
-@BUILD_PARTX_TRUE@	$(am__append_1)
-@BUILD_PARTX_TRUE@dist_man_MANS = addpart.8 delpart.8 partx.8
+ul_libuuid_srcdir = $(top_srcdir)/libuuid/src
+ul_libuuid_builddir = $(top_builddir)/libuuid/src
+ul_libuuid_la = $(top_builddir)/libuuid/src/libuuid.la
+
+# mount
+ul_libmount_srcdir = $(top_srcdir)/libmount/src
+ul_libmount_builddir = $(top_builddir)/libmount/src
+ul_libmount_la = $(top_builddir)/libmount/src/libmount.la
+
+# libmount.h is generated by ./configure script and stored in build directory
+ul_libmount_incdir = $(ul_libmount_builddir)
+dist_man_MANS = addpart.8 delpart.8 partx.8
+partx_SOURCES = partx.c partx.h \
+		$(top_srcdir)/lib/blkdev.c \
+		$(top_srcdir)/lib/sysfs.c \
+		$(top_srcdir)/lib/tt.c \
+		$(top_srcdir)/lib/at.c \
+		$(top_srcdir)/lib/mbsalign.c \
+		$(top_srcdir)/lib/strutils.c \
+		$(top_srcdir)/lib/linux_version.c
+
+partx_CFLAGS = -I$(ul_libblkid_incdir)
+partx_LDADD = $(ul_libblkid_la)
 all: all-am
 
 .SUFFIXES:
@@ -401,7 +415,7 @@ delpart$(EXEEXT): $(delpart_OBJECTS) $(delpart_DEPENDENCIES)
 	$(AM_V_CCLD)$(LINK) $(delpart_OBJECTS) $(delpart_LDADD) $(LIBS)
 partx$(EXEEXT): $(partx_OBJECTS) $(partx_DEPENDENCIES) 
 	@rm -f partx$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(partx_OBJECTS) $(partx_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(partx_LINK) $(partx_OBJECTS) $(partx_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -410,16 +424,15 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/addpart.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blkdev.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsd.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/crc32.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/delpart.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dos.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gpt.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/linux_version.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/solaris.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unixware.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx-at.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx-blkdev.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx-linux_version.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx-mbsalign.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx-partx.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx-strutils.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx-sysfs.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/partx-tt.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -445,37 +458,133 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
 
-blkdev.o: ../lib/blkdev.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT blkdev.o -MD -MP -MF $(DEPDIR)/blkdev.Tpo -c -o blkdev.o `test -f '../lib/blkdev.c' || echo '$(srcdir)/'`../lib/blkdev.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/blkdev.Tpo $(DEPDIR)/blkdev.Po
+partx-partx.o: partx.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-partx.o -MD -MP -MF $(DEPDIR)/partx-partx.Tpo -c -o partx-partx.o `test -f 'partx.c' || echo '$(srcdir)/'`partx.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-partx.Tpo $(DEPDIR)/partx-partx.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/blkdev.c' object='blkdev.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='partx.c' object='partx-partx.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o blkdev.o `test -f '../lib/blkdev.c' || echo '$(srcdir)/'`../lib/blkdev.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-partx.o `test -f 'partx.c' || echo '$(srcdir)/'`partx.c
 
-blkdev.obj: ../lib/blkdev.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT blkdev.obj -MD -MP -MF $(DEPDIR)/blkdev.Tpo -c -o blkdev.obj `if test -f '../lib/blkdev.c'; then $(CYGPATH_W) '../lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/../lib/blkdev.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/blkdev.Tpo $(DEPDIR)/blkdev.Po
+partx-partx.obj: partx.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-partx.obj -MD -MP -MF $(DEPDIR)/partx-partx.Tpo -c -o partx-partx.obj `if test -f 'partx.c'; then $(CYGPATH_W) 'partx.c'; else $(CYGPATH_W) '$(srcdir)/partx.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-partx.Tpo $(DEPDIR)/partx-partx.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/blkdev.c' object='blkdev.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='partx.c' object='partx-partx.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o blkdev.obj `if test -f '../lib/blkdev.c'; then $(CYGPATH_W) '../lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/../lib/blkdev.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-partx.obj `if test -f 'partx.c'; then $(CYGPATH_W) 'partx.c'; else $(CYGPATH_W) '$(srcdir)/partx.c'; fi`
 
-linux_version.o: ../lib/linux_version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT linux_version.o -MD -MP -MF $(DEPDIR)/linux_version.Tpo -c -o linux_version.o `test -f '../lib/linux_version.c' || echo '$(srcdir)/'`../lib/linux_version.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/linux_version.Tpo $(DEPDIR)/linux_version.Po
+partx-blkdev.o: $(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-blkdev.o -MD -MP -MF $(DEPDIR)/partx-blkdev.Tpo -c -o partx-blkdev.o `test -f '$(top_srcdir)/lib/blkdev.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-blkdev.Tpo $(DEPDIR)/partx-blkdev.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/linux_version.c' object='linux_version.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/blkdev.c' object='partx-blkdev.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o linux_version.o `test -f '../lib/linux_version.c' || echo '$(srcdir)/'`../lib/linux_version.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-blkdev.o `test -f '$(top_srcdir)/lib/blkdev.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/blkdev.c
 
-linux_version.obj: ../lib/linux_version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT linux_version.obj -MD -MP -MF $(DEPDIR)/linux_version.Tpo -c -o linux_version.obj `if test -f '../lib/linux_version.c'; then $(CYGPATH_W) '../lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/../lib/linux_version.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/linux_version.Tpo $(DEPDIR)/linux_version.Po
+partx-blkdev.obj: $(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-blkdev.obj -MD -MP -MF $(DEPDIR)/partx-blkdev.Tpo -c -o partx-blkdev.obj `if test -f '$(top_srcdir)/lib/blkdev.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/blkdev.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-blkdev.Tpo $(DEPDIR)/partx-blkdev.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/linux_version.c' object='linux_version.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/blkdev.c' object='partx-blkdev.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o linux_version.obj `if test -f '../lib/linux_version.c'; then $(CYGPATH_W) '../lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/../lib/linux_version.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-blkdev.obj `if test -f '$(top_srcdir)/lib/blkdev.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/blkdev.c'; fi`
+
+partx-sysfs.o: $(top_srcdir)/lib/sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-sysfs.o -MD -MP -MF $(DEPDIR)/partx-sysfs.Tpo -c -o partx-sysfs.o `test -f '$(top_srcdir)/lib/sysfs.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-sysfs.Tpo $(DEPDIR)/partx-sysfs.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/sysfs.c' object='partx-sysfs.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-sysfs.o `test -f '$(top_srcdir)/lib/sysfs.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/sysfs.c
+
+partx-sysfs.obj: $(top_srcdir)/lib/sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-sysfs.obj -MD -MP -MF $(DEPDIR)/partx-sysfs.Tpo -c -o partx-sysfs.obj `if test -f '$(top_srcdir)/lib/sysfs.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/sysfs.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/sysfs.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-sysfs.Tpo $(DEPDIR)/partx-sysfs.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/sysfs.c' object='partx-sysfs.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-sysfs.obj `if test -f '$(top_srcdir)/lib/sysfs.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/sysfs.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/sysfs.c'; fi`
+
+partx-tt.o: $(top_srcdir)/lib/tt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-tt.o -MD -MP -MF $(DEPDIR)/partx-tt.Tpo -c -o partx-tt.o `test -f '$(top_srcdir)/lib/tt.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/tt.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-tt.Tpo $(DEPDIR)/partx-tt.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/tt.c' object='partx-tt.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-tt.o `test -f '$(top_srcdir)/lib/tt.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/tt.c
+
+partx-tt.obj: $(top_srcdir)/lib/tt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-tt.obj -MD -MP -MF $(DEPDIR)/partx-tt.Tpo -c -o partx-tt.obj `if test -f '$(top_srcdir)/lib/tt.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/tt.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/tt.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-tt.Tpo $(DEPDIR)/partx-tt.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/tt.c' object='partx-tt.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-tt.obj `if test -f '$(top_srcdir)/lib/tt.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/tt.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/tt.c'; fi`
+
+partx-at.o: $(top_srcdir)/lib/at.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-at.o -MD -MP -MF $(DEPDIR)/partx-at.Tpo -c -o partx-at.o `test -f '$(top_srcdir)/lib/at.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/at.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-at.Tpo $(DEPDIR)/partx-at.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/at.c' object='partx-at.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-at.o `test -f '$(top_srcdir)/lib/at.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/at.c
+
+partx-at.obj: $(top_srcdir)/lib/at.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-at.obj -MD -MP -MF $(DEPDIR)/partx-at.Tpo -c -o partx-at.obj `if test -f '$(top_srcdir)/lib/at.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/at.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/at.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-at.Tpo $(DEPDIR)/partx-at.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/at.c' object='partx-at.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-at.obj `if test -f '$(top_srcdir)/lib/at.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/at.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/at.c'; fi`
+
+partx-mbsalign.o: $(top_srcdir)/lib/mbsalign.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-mbsalign.o -MD -MP -MF $(DEPDIR)/partx-mbsalign.Tpo -c -o partx-mbsalign.o `test -f '$(top_srcdir)/lib/mbsalign.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/mbsalign.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-mbsalign.Tpo $(DEPDIR)/partx-mbsalign.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/mbsalign.c' object='partx-mbsalign.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-mbsalign.o `test -f '$(top_srcdir)/lib/mbsalign.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/mbsalign.c
+
+partx-mbsalign.obj: $(top_srcdir)/lib/mbsalign.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-mbsalign.obj -MD -MP -MF $(DEPDIR)/partx-mbsalign.Tpo -c -o partx-mbsalign.obj `if test -f '$(top_srcdir)/lib/mbsalign.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/mbsalign.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/mbsalign.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-mbsalign.Tpo $(DEPDIR)/partx-mbsalign.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/mbsalign.c' object='partx-mbsalign.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-mbsalign.obj `if test -f '$(top_srcdir)/lib/mbsalign.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/mbsalign.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/mbsalign.c'; fi`
+
+partx-strutils.o: $(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-strutils.o -MD -MP -MF $(DEPDIR)/partx-strutils.Tpo -c -o partx-strutils.o `test -f '$(top_srcdir)/lib/strutils.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-strutils.Tpo $(DEPDIR)/partx-strutils.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/strutils.c' object='partx-strutils.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-strutils.o `test -f '$(top_srcdir)/lib/strutils.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/strutils.c
+
+partx-strutils.obj: $(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-strutils.obj -MD -MP -MF $(DEPDIR)/partx-strutils.Tpo -c -o partx-strutils.obj `if test -f '$(top_srcdir)/lib/strutils.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/strutils.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/strutils.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-strutils.Tpo $(DEPDIR)/partx-strutils.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/strutils.c' object='partx-strutils.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-strutils.obj `if test -f '$(top_srcdir)/lib/strutils.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/strutils.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/strutils.c'; fi`
+
+partx-linux_version.o: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-linux_version.o -MD -MP -MF $(DEPDIR)/partx-linux_version.Tpo -c -o partx-linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-linux_version.Tpo $(DEPDIR)/partx-linux_version.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='partx-linux_version.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
+
+partx-linux_version.obj: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -MT partx-linux_version.obj -MD -MP -MF $(DEPDIR)/partx-linux_version.Tpo -c -o partx-linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/partx-linux_version.Tpo $(DEPDIR)/partx-linux_version.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='partx-linux_version.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(partx_CFLAGS) $(CFLAGS) -c -o partx-linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -744,6 +853,9 @@ $(ul_libblkid_la):
 
 $(ul_libuuid_la):
 	$(MAKE) -C $(ul_libuuid_builddir)
+
+$(ul_libmount_la):
+	$(MAKE) -C $(ul_libmount_builddir)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

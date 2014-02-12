@@ -1,6 +1,6 @@
-.TH PIVOT_ROOT 8 "Feb 23, 2000" "Linux" "Maintenance Commands"
+.TH PIVOT_ROOT 8 "February 2000" "util-linux" "System Administration"
 .SH NAME
-pivot_root \- change the root file system
+pivot_root \- change the root filesystem
 .SH SYNOPSIS
 .B pivot_root
 .I new_root put_old
@@ -63,5 +63,5 @@ exec chroot . sh -c 'umount /old_root; exec /sbin/init' \\
 .BR pivot_root (2),
 .BR umount (8)
 .SH AVAILABILITY
-The pivot_root command is part of the util-linux-ng package and is available from
-ftp://ftp.kernel.org/pub/linux/utils/util-linux-ng/.
+The pivot_root command is part of the util-linux package and is available from
+ftp://ftp.kernel.org/pub/linux/utils/util-linux/.

@@ -38,28 +38,27 @@ host_triplet = @host@
 DIST_COMMON = $(am__dist_noinst_DATA_DIST) $(dist_man_MANS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(top_srcdir)/config/include-Makefile.am
-@LINUX_TRUE@am__append_1 = ../lib/linux_version.c
+@LINUX_TRUE@am__append_1 = $(top_srcdir)/lib/linux_version.c
 sbin_PROGRAMS = mkfs$(EXEEXT) mkswap$(EXEEXT) fsck.minix$(EXEEXT) \
 	mkfs.minix$(EXEEXT) mkfs.bfs$(EXEEXT) $(am__EXEEXT_1) \
-	$(am__EXEEXT_2) $(am__EXEEXT_3) $(am__EXEEXT_4)
+	$(am__EXEEXT_2) $(am__EXEEXT_3) $(am__EXEEXT_4) \
+	$(am__EXEEXT_5)
 usrbin_exec_PROGRAMS = isosize$(EXEEXT)
-usrsbin_exec_PROGRAMS = $(am__EXEEXT_5)
+usrsbin_exec_PROGRAMS = $(am__EXEEXT_6)
 @LINUX_TRUE@am__append_2 = fdformat.8 blockdev.8
 @LINUX_TRUE@am__append_3 = blockdev
 @LINUX_TRUE@am__append_4 = fdformat
-@BUILD_ELVTUNE_TRUE@am__append_5 = elvtune
-@BUILD_ELVTUNE_TRUE@am__append_6 = elvtune.8
-@BUILD_RAW_TRUE@@HAVE_RAW_TRUE@am__append_7 = raw
-@BUILD_RAW_TRUE@@HAVE_RAW_TRUE@am__append_8 = raw.8
-@BUILD_CRAMFS_TRUE@am__append_9 = fsck.cramfs mkfs.cramfs
-@BUILD_LIBUUID_TRUE@@HAVE_UUID_TRUE@am__append_10 = $(ul_libuuid_la)
-@BUILD_LIBUUID_TRUE@@HAVE_UUID_TRUE@am__append_11 = -I$(ul_libuuid_srcdir)
-@BUILD_LIBUUID_FALSE@@HAVE_UUID_TRUE@am__append_12 = $(UUID_LIBS)
-@BUILD_LIBUUID_FALSE@@HAVE_UUID_TRUE@am__append_13 = $(UUID_CFLAGS)
-
-# only in-tree libblkid has partitions parsing support
-@BUILD_LIBBLKID_TRUE@am__append_14 = $(ul_libblkid_la)
-@BUILD_LIBBLKID_TRUE@am__append_15 = -I$(ul_libblkid_incdir)
+@BUILD_LIBBLKID_TRUE@am__append_5 = swaplabel
+@BUILD_LIBBLKID_TRUE@am__append_6 = swaplabel.8
+@BUILD_LIBBLKID_TRUE@am__append_7 = $(ul_libblkid_la)
+@BUILD_LIBBLKID_TRUE@am__append_8 = -I$(ul_libblkid_incdir)
+@BUILD_LIBBLKID_TRUE@am__append_9 = $(ul_libblkid_la)
+@BUILD_LIBBLKID_TRUE@am__append_10 = -I$(ul_libblkid_incdir)
+@BUILD_ELVTUNE_TRUE@am__append_11 = elvtune
+@BUILD_ELVTUNE_TRUE@am__append_12 = elvtune.8
+@BUILD_RAW_TRUE@@HAVE_RAW_TRUE@am__append_13 = raw
+@BUILD_RAW_TRUE@@HAVE_RAW_TRUE@am__append_14 = raw.8
+@BUILD_CRAMFS_TRUE@am__append_15 = fsck.cramfs mkfs.cramfs
 @HAVE_SELINUX_TRUE@am__append_16 = -lselinux
 subdir = disk-utils
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -79,17 +78,18 @@ CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 @LINUX_TRUE@am__EXEEXT_1 = blockdev$(EXEEXT)
-@BUILD_ELVTUNE_TRUE@am__EXEEXT_2 = elvtune$(EXEEXT)
-@BUILD_RAW_TRUE@@HAVE_RAW_TRUE@am__EXEEXT_3 = raw$(EXEEXT)
-@BUILD_CRAMFS_TRUE@am__EXEEXT_4 = fsck.cramfs$(EXEEXT) \
+@BUILD_LIBBLKID_TRUE@am__EXEEXT_2 = swaplabel$(EXEEXT)
+@BUILD_ELVTUNE_TRUE@am__EXEEXT_3 = elvtune$(EXEEXT)
+@BUILD_RAW_TRUE@@HAVE_RAW_TRUE@am__EXEEXT_4 = raw$(EXEEXT)
+@BUILD_CRAMFS_TRUE@am__EXEEXT_5 = fsck.cramfs$(EXEEXT) \
 @BUILD_CRAMFS_TRUE@	mkfs.cramfs$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(usrbin_execdir)" \
 	"$(DESTDIR)$(usrsbin_execdir)" "$(DESTDIR)$(man8dir)"
-@LINUX_TRUE@am__EXEEXT_5 = fdformat$(EXEEXT)
+@LINUX_TRUE@am__EXEEXT_6 = fdformat$(EXEEXT)
 PROGRAMS = $(sbin_PROGRAMS) $(usrbin_exec_PROGRAMS) \
 	$(usrsbin_exec_PROGRAMS)
-am__blockdev_SOURCES_DIST = blockdev.c ../lib/blkdev.c \
-	../lib/linux_version.c
+am__blockdev_SOURCES_DIST = blockdev.c $(top_srcdir)/lib/blkdev.c \
+	$(top_srcdir)/lib/linux_version.c
 @LINUX_TRUE@am__objects_1 = linux_version.$(OBJEXT)
 am__objects_2 = blkdev.$(OBJEXT) $(am__objects_1)
 @LINUX_TRUE@am_blockdev_OBJECTS = blockdev.$(OBJEXT) $(am__objects_2)
@@ -98,7 +98,7 @@ blockdev_LDADD = $(LDADD)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
 am__v_lt_0 = --silent
-am__elvtune_SOURCES_DIST = elvtune.c ../lib/linux_version.c
+am__elvtune_SOURCES_DIST = elvtune.c $(top_srcdir)/lib/linux_version.c
 @BUILD_ELVTUNE_TRUE@am_elvtune_OBJECTS = elvtune.$(OBJEXT) \
 @BUILD_ELVTUNE_TRUE@	linux_version.$(OBJEXT)
 elvtune_OBJECTS = $(am_elvtune_OBJECTS)
@@ -106,59 +106,73 @@ elvtune_LDADD = $(LDADD)
 fdformat_SOURCES = fdformat.c
 fdformat_OBJECTS = fdformat.$(OBJEXT)
 fdformat_LDADD = $(LDADD)
-am__fsck_cramfs_SOURCES_DIST = fsck.cramfs.c ../lib/blkdev.c \
-	../lib/linux_version.c cramfs.h cramfs_common.c \
-	cramfs_common.h
+am__fsck_cramfs_SOURCES_DIST = fsck.cramfs.c \
+	$(top_srcdir)/lib/blkdev.c $(top_srcdir)/lib/linux_version.c \
+	cramfs.h cramfs_common.c
 @BUILD_CRAMFS_TRUE@am__objects_3 = $(am__objects_2) \
 @BUILD_CRAMFS_TRUE@	cramfs_common.$(OBJEXT)
 @BUILD_CRAMFS_TRUE@am_fsck_cramfs_OBJECTS = fsck.cramfs.$(OBJEXT) \
 @BUILD_CRAMFS_TRUE@	$(am__objects_3)
 fsck_cramfs_OBJECTS = $(am_fsck_cramfs_OBJECTS)
 fsck_cramfs_DEPENDENCIES =
-am_fsck_minix_OBJECTS = fsck.minix.$(OBJEXT)
+am_fsck_minix_OBJECTS = fsck.minix.$(OBJEXT) ismounted.$(OBJEXT)
 fsck_minix_OBJECTS = $(am_fsck_minix_OBJECTS)
 fsck_minix_LDADD = $(LDADD)
-isosize_SOURCES = isosize.c
-isosize_OBJECTS = isosize.$(OBJEXT)
+am_isosize_OBJECTS = isosize.$(OBJEXT) strutils.$(OBJEXT)
+isosize_OBJECTS = $(am_isosize_OBJECTS)
 isosize_LDADD = $(LDADD)
 mkfs_SOURCES = mkfs.c
 mkfs_OBJECTS = mkfs.$(OBJEXT)
 mkfs_LDADD = $(LDADD)
-am__mkfs_bfs_SOURCES_DIST = mkfs.bfs.c ../lib/blkdev.c \
-	../lib/linux_version.c
-am_mkfs_bfs_OBJECTS = mkfs.bfs.$(OBJEXT) $(am__objects_2)
+am__mkfs_bfs_SOURCES_DIST = mkfs.bfs.c $(top_srcdir)/lib/blkdev.c \
+	$(top_srcdir)/lib/linux_version.c $(top_srcdir)/lib/strutils.c
+am_mkfs_bfs_OBJECTS = mkfs.bfs.$(OBJEXT) $(am__objects_2) \
+	strutils.$(OBJEXT)
 mkfs_bfs_OBJECTS = $(am_mkfs_bfs_OBJECTS)
 mkfs_bfs_LDADD = $(LDADD)
-am__mkfs_cramfs_SOURCES_DIST = mkfs.cramfs.c ../lib/blkdev.c \
-	../lib/linux_version.c cramfs.h cramfs_common.c \
-	cramfs_common.h ../lib/md5.c
+am__mkfs_cramfs_SOURCES_DIST = mkfs.cramfs.c \
+	$(top_srcdir)/lib/blkdev.c $(top_srcdir)/lib/linux_version.c \
+	cramfs.h cramfs_common.c $(top_srcdir)/lib/md5.c \
+	$(top_srcdir)/lib/strutils.c
 @BUILD_CRAMFS_TRUE@am_mkfs_cramfs_OBJECTS = mkfs.cramfs.$(OBJEXT) \
-@BUILD_CRAMFS_TRUE@	$(am__objects_3) md5.$(OBJEXT)
+@BUILD_CRAMFS_TRUE@	$(am__objects_3) md5.$(OBJEXT) \
+@BUILD_CRAMFS_TRUE@	strutils.$(OBJEXT)
 mkfs_cramfs_OBJECTS = $(am_mkfs_cramfs_OBJECTS)
 mkfs_cramfs_DEPENDENCIES =
-am__mkfs_minix_SOURCES_DIST = mkfs.minix.c minix.h ../lib/blkdev.c \
-	../lib/linux_version.c
-am_mkfs_minix_OBJECTS = mkfs.minix.$(OBJEXT) $(am__objects_2)
+am__mkfs_minix_SOURCES_DIST = mkfs.minix.c minix_programs.h \
+	$(top_srcdir)/lib/blkdev.c $(top_srcdir)/lib/linux_version.c \
+	$(top_srcdir)/lib/strutils.c
+am_mkfs_minix_OBJECTS = mkfs.minix.$(OBJEXT) $(am__objects_2) \
+	strutils.$(OBJEXT)
 mkfs_minix_OBJECTS = $(am_mkfs_minix_OBJECTS)
 mkfs_minix_LDADD = $(LDADD)
-am__mkswap_SOURCES_DIST = mkswap.c ../lib/blkdev.c \
-	../lib/linux_version.c ../lib/wholedisk.c
+am__mkswap_SOURCES_DIST = mkswap.c $(top_srcdir)/lib/blkdev.c \
+	$(top_srcdir)/lib/linux_version.c \
+	$(top_srcdir)/lib/wholedisk.c $(top_srcdir)/lib/strutils.c
 @LINUX_TRUE@am__objects_4 = mkswap-linux_version.$(OBJEXT)
 am__objects_5 = mkswap-blkdev.$(OBJEXT) $(am__objects_4)
 am_mkswap_OBJECTS = mkswap-mkswap.$(OBJEXT) $(am__objects_5) \
-	mkswap-wholedisk.$(OBJEXT)
+	mkswap-wholedisk.$(OBJEXT) mkswap-strutils.$(OBJEXT)
 mkswap_OBJECTS = $(am_mkswap_OBJECTS)
 am__DEPENDENCIES_1 =
-@BUILD_LIBUUID_FALSE@@HAVE_UUID_TRUE@am__DEPENDENCIES_2 =  \
-@BUILD_LIBUUID_FALSE@@HAVE_UUID_TRUE@	$(am__DEPENDENCIES_1)
-mkswap_DEPENDENCIES = $(am__append_10) $(am__DEPENDENCIES_2) \
-	$(am__append_14) $(am__DEPENDENCIES_1)
+mkswap_DEPENDENCIES = $(uuid_ldadd) $(am__append_9) \
+	$(am__DEPENDENCIES_1)
 mkswap_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mkswap_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 raw_SOURCES = raw.c
 raw_OBJECTS = raw.$(OBJEXT)
 raw_LDADD = $(LDADD)
+am__swaplabel_SOURCES_DIST = swaplabel.c $(top_srcdir)/lib/blkdev.c \
+	$(top_srcdir)/lib/linux_version.c
+@LINUX_TRUE@am__objects_6 = swaplabel-linux_version.$(OBJEXT)
+am__objects_7 = swaplabel-blkdev.$(OBJEXT) $(am__objects_6)
+am_swaplabel_OBJECTS = swaplabel-swaplabel.$(OBJEXT) $(am__objects_7)
+swaplabel_OBJECTS = $(am_swaplabel_OBJECTS)
+swaplabel_DEPENDENCIES = $(uuid_ldadd) $(am__append_7)
+swaplabel_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(swaplabel_CFLAGS) \
+	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -186,15 +200,16 @@ AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(blockdev_SOURCES) $(elvtune_SOURCES) fdformat.c \
-	$(fsck_cramfs_SOURCES) $(fsck_minix_SOURCES) isosize.c mkfs.c \
-	$(mkfs_bfs_SOURCES) $(mkfs_cramfs_SOURCES) \
-	$(mkfs_minix_SOURCES) $(mkswap_SOURCES) raw.c
+	$(fsck_cramfs_SOURCES) $(fsck_minix_SOURCES) \
+	$(isosize_SOURCES) mkfs.c $(mkfs_bfs_SOURCES) \
+	$(mkfs_cramfs_SOURCES) $(mkfs_minix_SOURCES) $(mkswap_SOURCES) \
+	raw.c $(swaplabel_SOURCES)
 DIST_SOURCES = $(am__blockdev_SOURCES_DIST) \
 	$(am__elvtune_SOURCES_DIST) fdformat.c \
 	$(am__fsck_cramfs_SOURCES_DIST) $(fsck_minix_SOURCES) \
-	isosize.c mkfs.c $(am__mkfs_bfs_SOURCES_DIST) \
+	$(isosize_SOURCES) mkfs.c $(am__mkfs_bfs_SOURCES_DIST) \
 	$(am__mkfs_cramfs_SOURCES_DIST) $(am__mkfs_minix_SOURCES_DIST) \
-	$(am__mkswap_SOURCES_DIST) raw.c
+	$(am__mkswap_SOURCES_DIST) raw.c $(am__swaplabel_SOURCES_DIST)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -220,7 +235,8 @@ man8dir = $(mandir)/man8
 NROFF = nroff
 MANS = $(dist_man_MANS)
 am__dist_noinst_DATA_DIST = isosize.8 mkfs.8 mkswap.8 fsck.minix.8 \
-	mkfs.minix.8 mkfs.bfs.8 fdformat.8 blockdev.8 elvtune.8 raw.8
+	mkfs.minix.8 mkfs.bfs.8 fdformat.8 blockdev.8 swaplabel.8 \
+	elvtune.8 raw.8
 DATA = $(dist_noinst_DATA)
 ETAGS = etags
 CTAGS = ctags
@@ -233,9 +249,6 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BLKID_CFLAGS = @BLKID_CFLAGS@
-BLKID_LIBS = @BLKID_LIBS@
-BLKID_LIBS_STATIC = @BLKID_LIBS_STATIC@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
@@ -244,6 +257,7 @@ CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DLLTOOL = @DLLTOOL@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -269,6 +283,8 @@ LIBBLKID_VERSION = @LIBBLKID_VERSION@
 LIBBLKID_VERSION_INFO = @LIBBLKID_VERSION_INFO@
 LIBICONV = @LIBICONV@
 LIBINTL = @LIBINTL@
+LIBMOUNT_VERSION = @LIBMOUNT_VERSION@
+LIBMOUNT_VERSION_INFO = @LIBMOUNT_VERSION_INFO@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -280,6 +296,7 @@ LTLIBICONV = @LTLIBICONV@
 LTLIBINTL = @LTLIBINTL@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
+MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
 MKINSTALLDIRS = @MKINSTALLDIRS@
 MSGFMT = @MSGFMT@
@@ -296,10 +313,13 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
+PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PERL = @PERL@
 PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
 RANLIB = @RANLIB@
 SED = @SED@
@@ -307,12 +327,11 @@ SELINUX_LIBS = @SELINUX_LIBS@
 SELINUX_LIBS_STATIC = @SELINUX_LIBS_STATIC@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SOCKET_LIBS = @SOCKET_LIBS@
 STRIP = @STRIP@
 SUID_CFLAGS = @SUID_CFLAGS@
 SUID_LDFLAGS = @SUID_LDFLAGS@
 USE_NLS = @USE_NLS@
-UUID_CFLAGS = @UUID_CFLAGS@
-UUID_LIBS = @UUID_LIBS@
 VERSION = @VERSION@
 XGETTEXT = @XGETTEXT@
 XSLTPROC = @XSLTPROC@
@@ -320,6 +339,7 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
+ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
@@ -353,7 +373,6 @@ libdirname = @libdirname@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -387,33 +406,48 @@ dist_noinst_DATA = $(dist_man_MANS)
 # Paths to in-tree libraries (use ul_ prefix to avoid possible collisions)
 #
 # blkid
-ul_libblkid_srcdir = $(top_srcdir)/shlibs/blkid/src
-ul_libblkid_builddir = $(top_builddir)/shlibs/blkid/src
-ul_libblkid_la = $(top_builddir)/shlibs/blkid/src/libblkid.la
+ul_libblkid_srcdir = $(top_srcdir)/libblkid/src
+ul_libblkid_builddir = $(top_builddir)/libblkid/src
+ul_libblkid_la = $(top_builddir)/libblkid/src/libblkid.la
 
 # blkid.h is generated by ./configure script and stored in build directory
 ul_libblkid_incdir = $(ul_libblkid_builddir)
 
 # uuid
-ul_libuuid_srcdir = $(top_srcdir)/shlibs/uuid/src
-ul_libuuid_builddir = $(top_builddir)/shlibs/uuid/src
-ul_libuuid_la = $(top_builddir)/shlibs/uuid/src/libuuid.la
-utils_common = ../lib/blkdev.c $(am__append_1)
+ul_libuuid_srcdir = $(top_srcdir)/libuuid/src
+ul_libuuid_builddir = $(top_builddir)/libuuid/src
+ul_libuuid_la = $(top_builddir)/libuuid/src/libuuid.la
+
+# mount
+ul_libmount_srcdir = $(top_srcdir)/libmount/src
+ul_libmount_builddir = $(top_builddir)/libmount/src
+ul_libmount_la = $(top_builddir)/libmount/src/libmount.la
+
+# libmount.h is generated by ./configure script and stored in build directory
+ul_libmount_incdir = $(ul_libmount_builddir)
+utils_common = $(top_srcdir)/lib/blkdev.c $(am__append_1)
+@BUILD_LIBUUID_TRUE@uuid_cflags = -I$(ul_libuuid_srcdir)
+@BUILD_LIBUUID_TRUE@uuid_ldadd = $(ul_libuuid_la)
 dist_man_MANS = isosize.8 mkfs.8 mkswap.8 fsck.minix.8 mkfs.minix.8 \
-	mkfs.bfs.8 $(am__append_2) $(am__append_6) $(am__append_8)
-fsck_minix_SOURCES = fsck.minix.c minix.h
-mkfs_minix_SOURCES = mkfs.minix.c minix.h $(utils_common)
-mkfs_bfs_SOURCES = mkfs.bfs.c $(utils_common)
-mkswap_SOURCES = mkswap.c $(utils_common) ../lib/wholedisk.c
-mkswap_LDADD = $(am__append_10) $(am__append_12) $(am__append_14) \
-	$(am__append_16)
-mkswap_CFLAGS = $(AM_CFLAGS) $(am__append_11) $(am__append_13) \
-	$(am__append_15)
+	mkfs.bfs.8 $(am__append_2) $(am__append_6) $(am__append_12) \
+	$(am__append_14)
+fsck_minix_SOURCES = fsck.minix.c minix_programs.h $(top_srcdir)/lib/ismounted.c
+mkfs_minix_SOURCES = mkfs.minix.c minix_programs.h $(utils_common) \
+		    $(top_srcdir)/lib/strutils.c 
+
+mkfs_bfs_SOURCES = mkfs.bfs.c $(utils_common) $(top_srcdir)/lib/strutils.c
+swaplabel_SOURCES = swaplabel.c $(utils_common)
+swaplabel_LDADD = $(uuid_ldadd) $(am__append_7)
+swaplabel_CFLAGS = $(AM_CFLAGS) $(uuid_cflags) $(am__append_8)
+mkswap_SOURCES = mkswap.c $(utils_common) $(top_srcdir)/lib/wholedisk.c $(top_srcdir)/lib/strutils.c
+mkswap_LDADD = $(uuid_ldadd) $(am__append_9) $(am__append_16)
+mkswap_CFLAGS = $(AM_CFLAGS) $(uuid_cflags) $(am__append_10)
+isosize_SOURCES = isosize.c $(top_srcdir)/lib/strutils.c
 @LINUX_TRUE@blockdev_SOURCES = blockdev.c $(utils_common)
-@BUILD_ELVTUNE_TRUE@elvtune_SOURCES = elvtune.c ../lib/linux_version.c
-@BUILD_CRAMFS_TRUE@cramfs_common = $(utils_common) cramfs.h cramfs_common.c cramfs_common.h
+@BUILD_ELVTUNE_TRUE@elvtune_SOURCES = elvtune.c $(top_srcdir)/lib/linux_version.c
+@BUILD_CRAMFS_TRUE@cramfs_common = $(utils_common) cramfs.h cramfs_common.c
 @BUILD_CRAMFS_TRUE@fsck_cramfs_SOURCES = fsck.cramfs.c $(cramfs_common)
-@BUILD_CRAMFS_TRUE@mkfs_cramfs_SOURCES = mkfs.cramfs.c $(cramfs_common) ../lib/md5.c
+@BUILD_CRAMFS_TRUE@mkfs_cramfs_SOURCES = mkfs.cramfs.c $(cramfs_common) $(top_srcdir)/lib/md5.c $(top_srcdir)/lib/strutils.c
 @BUILD_CRAMFS_TRUE@fsck_cramfs_LDADD = -lz
 @BUILD_CRAMFS_TRUE@mkfs_cramfs_LDADD = -lz
 all: all-am
@@ -615,6 +649,9 @@ mkswap$(EXEEXT): $(mkswap_OBJECTS) $(mkswap_DEPENDENCIES)
 raw$(EXEEXT): $(raw_OBJECTS) $(raw_DEPENDENCIES) 
 	@rm -f raw$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(raw_OBJECTS) $(raw_LDADD) $(LIBS)
+swaplabel$(EXEEXT): $(swaplabel_OBJECTS) $(swaplabel_DEPENDENCIES) 
+	@rm -f swaplabel$(EXEEXT)
+	$(AM_V_CCLD)$(swaplabel_LINK) $(swaplabel_OBJECTS) $(swaplabel_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -629,6 +666,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fdformat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fsck.cramfs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fsck.minix.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ismounted.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/isosize.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/linux_version.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/md5.Po@am__quote@
@@ -639,8 +677,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mkswap-blkdev.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mkswap-linux_version.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mkswap-mkswap.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mkswap-strutils.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mkswap-wholedisk.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/raw.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strutils.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/swaplabel-blkdev.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/swaplabel-linux_version.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/swaplabel-swaplabel.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -666,53 +709,85 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
 
-blkdev.o: ../lib/blkdev.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT blkdev.o -MD -MP -MF $(DEPDIR)/blkdev.Tpo -c -o blkdev.o `test -f '../lib/blkdev.c' || echo '$(srcdir)/'`../lib/blkdev.c
+blkdev.o: $(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT blkdev.o -MD -MP -MF $(DEPDIR)/blkdev.Tpo -c -o blkdev.o `test -f '$(top_srcdir)/lib/blkdev.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/blkdev.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/blkdev.Tpo $(DEPDIR)/blkdev.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/blkdev.c' object='blkdev.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/blkdev.c' object='blkdev.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o blkdev.o `test -f '../lib/blkdev.c' || echo '$(srcdir)/'`../lib/blkdev.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o blkdev.o `test -f '$(top_srcdir)/lib/blkdev.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/blkdev.c
 
-blkdev.obj: ../lib/blkdev.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT blkdev.obj -MD -MP -MF $(DEPDIR)/blkdev.Tpo -c -o blkdev.obj `if test -f '../lib/blkdev.c'; then $(CYGPATH_W) '../lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/../lib/blkdev.c'; fi`
+blkdev.obj: $(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT blkdev.obj -MD -MP -MF $(DEPDIR)/blkdev.Tpo -c -o blkdev.obj `if test -f '$(top_srcdir)/lib/blkdev.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/blkdev.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/blkdev.Tpo $(DEPDIR)/blkdev.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/blkdev.c' object='blkdev.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/blkdev.c' object='blkdev.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o blkdev.obj `if test -f '../lib/blkdev.c'; then $(CYGPATH_W) '../lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/../lib/blkdev.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o blkdev.obj `if test -f '$(top_srcdir)/lib/blkdev.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/blkdev.c'; fi`
 
-linux_version.o: ../lib/linux_version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT linux_version.o -MD -MP -MF $(DEPDIR)/linux_version.Tpo -c -o linux_version.o `test -f '../lib/linux_version.c' || echo '$(srcdir)/'`../lib/linux_version.c
+linux_version.o: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT linux_version.o -MD -MP -MF $(DEPDIR)/linux_version.Tpo -c -o linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/linux_version.Tpo $(DEPDIR)/linux_version.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/linux_version.c' object='linux_version.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='linux_version.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o linux_version.o `test -f '../lib/linux_version.c' || echo '$(srcdir)/'`../lib/linux_version.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
 
-linux_version.obj: ../lib/linux_version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT linux_version.obj -MD -MP -MF $(DEPDIR)/linux_version.Tpo -c -o linux_version.obj `if test -f '../lib/linux_version.c'; then $(CYGPATH_W) '../lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/../lib/linux_version.c'; fi`
+linux_version.obj: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT linux_version.obj -MD -MP -MF $(DEPDIR)/linux_version.Tpo -c -o linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/linux_version.Tpo $(DEPDIR)/linux_version.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/linux_version.c' object='linux_version.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='linux_version.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o linux_version.obj `if test -f '../lib/linux_version.c'; then $(CYGPATH_W) '../lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/../lib/linux_version.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
 
-md5.o: ../lib/md5.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT md5.o -MD -MP -MF $(DEPDIR)/md5.Tpo -c -o md5.o `test -f '../lib/md5.c' || echo '$(srcdir)/'`../lib/md5.c
+ismounted.o: $(top_srcdir)/lib/ismounted.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ismounted.o -MD -MP -MF $(DEPDIR)/ismounted.Tpo -c -o ismounted.o `test -f '$(top_srcdir)/lib/ismounted.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/ismounted.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ismounted.Tpo $(DEPDIR)/ismounted.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/ismounted.c' object='ismounted.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ismounted.o `test -f '$(top_srcdir)/lib/ismounted.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/ismounted.c
+
+ismounted.obj: $(top_srcdir)/lib/ismounted.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ismounted.obj -MD -MP -MF $(DEPDIR)/ismounted.Tpo -c -o ismounted.obj `if test -f '$(top_srcdir)/lib/ismounted.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/ismounted.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/ismounted.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ismounted.Tpo $(DEPDIR)/ismounted.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/ismounted.c' object='ismounted.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ismounted.obj `if test -f '$(top_srcdir)/lib/ismounted.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/ismounted.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/ismounted.c'; fi`
+
+strutils.o: $(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT strutils.o -MD -MP -MF $(DEPDIR)/strutils.Tpo -c -o strutils.o `test -f '$(top_srcdir)/lib/strutils.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/strutils.Tpo $(DEPDIR)/strutils.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/strutils.c' object='strutils.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o strutils.o `test -f '$(top_srcdir)/lib/strutils.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/strutils.c
+
+strutils.obj: $(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT strutils.obj -MD -MP -MF $(DEPDIR)/strutils.Tpo -c -o strutils.obj `if test -f '$(top_srcdir)/lib/strutils.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/strutils.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/strutils.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/strutils.Tpo $(DEPDIR)/strutils.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/strutils.c' object='strutils.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o strutils.obj `if test -f '$(top_srcdir)/lib/strutils.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/strutils.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/strutils.c'; fi`
+
+md5.o: $(top_srcdir)/lib/md5.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT md5.o -MD -MP -MF $(DEPDIR)/md5.Tpo -c -o md5.o `test -f '$(top_srcdir)/lib/md5.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/md5.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/md5.Tpo $(DEPDIR)/md5.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/md5.c' object='md5.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/md5.c' object='md5.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o md5.o `test -f '../lib/md5.c' || echo '$(srcdir)/'`../lib/md5.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o md5.o `test -f '$(top_srcdir)/lib/md5.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/md5.c
 
-md5.obj: ../lib/md5.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT md5.obj -MD -MP -MF $(DEPDIR)/md5.Tpo -c -o md5.obj `if test -f '../lib/md5.c'; then $(CYGPATH_W) '../lib/md5.c'; else $(CYGPATH_W) '$(srcdir)/../lib/md5.c'; fi`
+md5.obj: $(top_srcdir)/lib/md5.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT md5.obj -MD -MP -MF $(DEPDIR)/md5.Tpo -c -o md5.obj `if test -f '$(top_srcdir)/lib/md5.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/md5.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/md5.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/md5.Tpo $(DEPDIR)/md5.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/md5.c' object='md5.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/md5.c' object='md5.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o md5.obj `if test -f '../lib/md5.c'; then $(CYGPATH_W) '../lib/md5.c'; else $(CYGPATH_W) '$(srcdir)/../lib/md5.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o md5.obj `if test -f '$(top_srcdir)/lib/md5.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/md5.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/md5.c'; fi`
 
 mkswap-mkswap.o: mkswap.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-mkswap.o -MD -MP -MF $(DEPDIR)/mkswap-mkswap.Tpo -c -o mkswap-mkswap.o `test -f 'mkswap.c' || echo '$(srcdir)/'`mkswap.c
@@ -730,53 +805,117 @@ mkswap-mkswap.obj: mkswap.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-mkswap.obj `if test -f 'mkswap.c'; then $(CYGPATH_W) 'mkswap.c'; else $(CYGPATH_W) '$(srcdir)/mkswap.c'; fi`
 
-mkswap-blkdev.o: ../lib/blkdev.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-blkdev.o -MD -MP -MF $(DEPDIR)/mkswap-blkdev.Tpo -c -o mkswap-blkdev.o `test -f '../lib/blkdev.c' || echo '$(srcdir)/'`../lib/blkdev.c
+mkswap-blkdev.o: $(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-blkdev.o -MD -MP -MF $(DEPDIR)/mkswap-blkdev.Tpo -c -o mkswap-blkdev.o `test -f '$(top_srcdir)/lib/blkdev.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/blkdev.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mkswap-blkdev.Tpo $(DEPDIR)/mkswap-blkdev.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/blkdev.c' object='mkswap-blkdev.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/blkdev.c' object='mkswap-blkdev.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-blkdev.o `test -f '../lib/blkdev.c' || echo '$(srcdir)/'`../lib/blkdev.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-blkdev.o `test -f '$(top_srcdir)/lib/blkdev.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/blkdev.c
 
-mkswap-blkdev.obj: ../lib/blkdev.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-blkdev.obj -MD -MP -MF $(DEPDIR)/mkswap-blkdev.Tpo -c -o mkswap-blkdev.obj `if test -f '../lib/blkdev.c'; then $(CYGPATH_W) '../lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/../lib/blkdev.c'; fi`
+mkswap-blkdev.obj: $(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-blkdev.obj -MD -MP -MF $(DEPDIR)/mkswap-blkdev.Tpo -c -o mkswap-blkdev.obj `if test -f '$(top_srcdir)/lib/blkdev.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/blkdev.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mkswap-blkdev.Tpo $(DEPDIR)/mkswap-blkdev.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/blkdev.c' object='mkswap-blkdev.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/blkdev.c' object='mkswap-blkdev.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-blkdev.obj `if test -f '../lib/blkdev.c'; then $(CYGPATH_W) '../lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/../lib/blkdev.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-blkdev.obj `if test -f '$(top_srcdir)/lib/blkdev.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/blkdev.c'; fi`
 
-mkswap-linux_version.o: ../lib/linux_version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-linux_version.o -MD -MP -MF $(DEPDIR)/mkswap-linux_version.Tpo -c -o mkswap-linux_version.o `test -f '../lib/linux_version.c' || echo '$(srcdir)/'`../lib/linux_version.c
+mkswap-linux_version.o: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-linux_version.o -MD -MP -MF $(DEPDIR)/mkswap-linux_version.Tpo -c -o mkswap-linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mkswap-linux_version.Tpo $(DEPDIR)/mkswap-linux_version.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/linux_version.c' object='mkswap-linux_version.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='mkswap-linux_version.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-linux_version.o `test -f '../lib/linux_version.c' || echo '$(srcdir)/'`../lib/linux_version.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
 
-mkswap-linux_version.obj: ../lib/linux_version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-linux_version.obj -MD -MP -MF $(DEPDIR)/mkswap-linux_version.Tpo -c -o mkswap-linux_version.obj `if test -f '../lib/linux_version.c'; then $(CYGPATH_W) '../lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/../lib/linux_version.c'; fi`
+mkswap-linux_version.obj: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-linux_version.obj -MD -MP -MF $(DEPDIR)/mkswap-linux_version.Tpo -c -o mkswap-linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mkswap-linux_version.Tpo $(DEPDIR)/mkswap-linux_version.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/linux_version.c' object='mkswap-linux_version.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='mkswap-linux_version.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-linux_version.obj `if test -f '../lib/linux_version.c'; then $(CYGPATH_W) '../lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/../lib/linux_version.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
 
-mkswap-wholedisk.o: ../lib/wholedisk.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-wholedisk.o -MD -MP -MF $(DEPDIR)/mkswap-wholedisk.Tpo -c -o mkswap-wholedisk.o `test -f '../lib/wholedisk.c' || echo '$(srcdir)/'`../lib/wholedisk.c
+mkswap-wholedisk.o: $(top_srcdir)/lib/wholedisk.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-wholedisk.o -MD -MP -MF $(DEPDIR)/mkswap-wholedisk.Tpo -c -o mkswap-wholedisk.o `test -f '$(top_srcdir)/lib/wholedisk.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/wholedisk.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mkswap-wholedisk.Tpo $(DEPDIR)/mkswap-wholedisk.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/wholedisk.c' object='mkswap-wholedisk.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/wholedisk.c' object='mkswap-wholedisk.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-wholedisk.o `test -f '../lib/wholedisk.c' || echo '$(srcdir)/'`../lib/wholedisk.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-wholedisk.o `test -f '$(top_srcdir)/lib/wholedisk.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/wholedisk.c
 
-mkswap-wholedisk.obj: ../lib/wholedisk.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-wholedisk.obj -MD -MP -MF $(DEPDIR)/mkswap-wholedisk.Tpo -c -o mkswap-wholedisk.obj `if test -f '../lib/wholedisk.c'; then $(CYGPATH_W) '../lib/wholedisk.c'; else $(CYGPATH_W) '$(srcdir)/../lib/wholedisk.c'; fi`
+mkswap-wholedisk.obj: $(top_srcdir)/lib/wholedisk.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-wholedisk.obj -MD -MP -MF $(DEPDIR)/mkswap-wholedisk.Tpo -c -o mkswap-wholedisk.obj `if test -f '$(top_srcdir)/lib/wholedisk.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/wholedisk.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/wholedisk.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mkswap-wholedisk.Tpo $(DEPDIR)/mkswap-wholedisk.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/wholedisk.c' object='mkswap-wholedisk.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/wholedisk.c' object='mkswap-wholedisk.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-wholedisk.obj `if test -f '../lib/wholedisk.c'; then $(CYGPATH_W) '../lib/wholedisk.c'; else $(CYGPATH_W) '$(srcdir)/../lib/wholedisk.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-wholedisk.obj `if test -f '$(top_srcdir)/lib/wholedisk.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/wholedisk.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/wholedisk.c'; fi`
+
+mkswap-strutils.o: $(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-strutils.o -MD -MP -MF $(DEPDIR)/mkswap-strutils.Tpo -c -o mkswap-strutils.o `test -f '$(top_srcdir)/lib/strutils.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mkswap-strutils.Tpo $(DEPDIR)/mkswap-strutils.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/strutils.c' object='mkswap-strutils.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-strutils.o `test -f '$(top_srcdir)/lib/strutils.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/strutils.c
+
+mkswap-strutils.obj: $(top_srcdir)/lib/strutils.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -MT mkswap-strutils.obj -MD -MP -MF $(DEPDIR)/mkswap-strutils.Tpo -c -o mkswap-strutils.obj `if test -f '$(top_srcdir)/lib/strutils.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/strutils.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/strutils.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mkswap-strutils.Tpo $(DEPDIR)/mkswap-strutils.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/strutils.c' object='mkswap-strutils.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mkswap_CFLAGS) $(CFLAGS) -c -o mkswap-strutils.obj `if test -f '$(top_srcdir)/lib/strutils.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/strutils.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/strutils.c'; fi`
+
+swaplabel-swaplabel.o: swaplabel.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -MT swaplabel-swaplabel.o -MD -MP -MF $(DEPDIR)/swaplabel-swaplabel.Tpo -c -o swaplabel-swaplabel.o `test -f 'swaplabel.c' || echo '$(srcdir)/'`swaplabel.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/swaplabel-swaplabel.Tpo $(DEPDIR)/swaplabel-swaplabel.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='swaplabel.c' object='swaplabel-swaplabel.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -c -o swaplabel-swaplabel.o `test -f 'swaplabel.c' || echo '$(srcdir)/'`swaplabel.c
+
+swaplabel-swaplabel.obj: swaplabel.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -MT swaplabel-swaplabel.obj -MD -MP -MF $(DEPDIR)/swaplabel-swaplabel.Tpo -c -o swaplabel-swaplabel.obj `if test -f 'swaplabel.c'; then $(CYGPATH_W) 'swaplabel.c'; else $(CYGPATH_W) '$(srcdir)/swaplabel.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/swaplabel-swaplabel.Tpo $(DEPDIR)/swaplabel-swaplabel.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='swaplabel.c' object='swaplabel-swaplabel.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -c -o swaplabel-swaplabel.obj `if test -f 'swaplabel.c'; then $(CYGPATH_W) 'swaplabel.c'; else $(CYGPATH_W) '$(srcdir)/swaplabel.c'; fi`
+
+swaplabel-blkdev.o: $(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -MT swaplabel-blkdev.o -MD -MP -MF $(DEPDIR)/swaplabel-blkdev.Tpo -c -o swaplabel-blkdev.o `test -f '$(top_srcdir)/lib/blkdev.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/swaplabel-blkdev.Tpo $(DEPDIR)/swaplabel-blkdev.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/blkdev.c' object='swaplabel-blkdev.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -c -o swaplabel-blkdev.o `test -f '$(top_srcdir)/lib/blkdev.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/blkdev.c
+
+swaplabel-blkdev.obj: $(top_srcdir)/lib/blkdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -MT swaplabel-blkdev.obj -MD -MP -MF $(DEPDIR)/swaplabel-blkdev.Tpo -c -o swaplabel-blkdev.obj `if test -f '$(top_srcdir)/lib/blkdev.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/blkdev.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/swaplabel-blkdev.Tpo $(DEPDIR)/swaplabel-blkdev.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/blkdev.c' object='swaplabel-blkdev.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -c -o swaplabel-blkdev.obj `if test -f '$(top_srcdir)/lib/blkdev.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/blkdev.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/blkdev.c'; fi`
+
+swaplabel-linux_version.o: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -MT swaplabel-linux_version.o -MD -MP -MF $(DEPDIR)/swaplabel-linux_version.Tpo -c -o swaplabel-linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/swaplabel-linux_version.Tpo $(DEPDIR)/swaplabel-linux_version.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='swaplabel-linux_version.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -c -o swaplabel-linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
+
+swaplabel-linux_version.obj: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -MT swaplabel-linux_version.obj -MD -MP -MF $(DEPDIR)/swaplabel-linux_version.Tpo -c -o swaplabel-linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/swaplabel-linux_version.Tpo $(DEPDIR)/swaplabel-linux_version.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='swaplabel-linux_version.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(swaplabel_CFLAGS) $(CFLAGS) -c -o swaplabel-linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1051,6 +1190,9 @@ $(ul_libblkid_la):
 
 $(ul_libuuid_la):
 	$(MAKE) -C $(ul_libuuid_builddir)
+
+$(ul_libmount_la):
+	$(MAKE) -C $(ul_libmount_builddir)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

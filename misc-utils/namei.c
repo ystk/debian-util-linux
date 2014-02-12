@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008 Karel Zak <kzak@redhat.com>
  *
- * This file is part of util-linux-ng.
+ * This file is part of util-linux.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
  *	Arkadiusz Mikiewicz (1999-02-22)
  *	Li Zefan (2007-09-10).
  */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -29,13 +30,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
-#include <err.h>
 #include <pwd.h>
 #include <grp.h>
 
 #include "c.h"
+#include "xalloc.h"
 #include "nls.h"
 #include "widechar.h"
+#include "strutils.h"
 
 #ifndef MAXSYMLINKS
 #define MAXSYMLINKS 256
@@ -60,6 +62,7 @@ struct namei {
 	struct namei	*next;		/* next item */
 	int		level;
 	int		mountpoint;	/* is mount point */
+	int		noent;		/* is this item not existing */
 };
 
 struct idcache {
@@ -102,9 +105,7 @@ add_id(struct idcache **ic, char *name, unsigned long int id, int *width)
 	struct idcache *nc, *x;
 	int w = 0;
 
-	nc = calloc(1, sizeof(*nc));
-	if (!nc)
-		goto alloc_err;
+	nc = xcalloc(1, sizeof(*nc));
 	nc->id = id;
 
 	if (name) {
@@ -121,11 +122,9 @@ add_id(struct idcache **ic, char *name, unsigned long int id, int *width)
 	}
 	/* note, we ignore names with non-printable widechars */
 	if (w > 0)
-		nc->name = strdup(name);
+		nc->name = xstrdup(name);
 	else if (asprintf(&nc->name, "%lu", id) == -1)
 		nc->name = NULL;
-	if (!nc->name)
-		goto alloc_err;
 
 	for (x = *ic; x && x->next; x = x->next);
 
@@ -139,8 +138,6 @@ add_id(struct idcache **ic, char *name, unsigned long int id, int *width)
 	*width = *width < w ? w : *width;
 
 	return;
-alloc_err:
-	err(EXIT_FAILURE, _("out of memory?"));
 }
 
 static void
@@ -181,7 +178,7 @@ static void
 readlink_to_namei(struct namei *nm, const char *path)
 {
 	char sym[PATH_MAX];
-	size_t sz;
+	ssize_t sz;
 
 	sz = readlink(path, sym, sizeof(sym));
 	if (sz < 1)
@@ -193,9 +190,7 @@ readlink_to_namei(struct namei *nm, const char *path)
 		if (nm->relstart)
 			sz += nm->relstart + 1;
 	}
-	nm->abslink = malloc(sz + 1);
-	if (!nm->abslink)
-		err(EXIT_FAILURE, _("out of memory?"));
+	nm->abslink = xmalloc(sz + 1);
 
 	if (*sym != '/' && nm->relstart) {
 		/* create the absolute path from the relative symlink */
@@ -220,9 +215,7 @@ dotdot_stat(const char *dirname, struct stat *st)
 		return NULL;
 
 	len = strlen(dirname);
-	path = malloc(len + sizeof(DOTDOTDIR));
-	if (!path)
-		err(EXIT_FAILURE, _("out of memory?"));
+	path = xmalloc(len + sizeof(DOTDOTDIR));
 
 	memcpy(path, dirname, len);
 	memcpy(path + len, DOTDOTDIR, sizeof(DOTDOTDIR));
@@ -240,18 +233,16 @@ new_namei(struct namei *parent, const char *path, const char *fname, int lev)
 
 	if (!fname)
 		return NULL;
-	nm = calloc(1, sizeof(*nm));
-	if (!nm)
-		err(EXIT_FAILURE, _("out of memory?"));
+	nm = xcalloc(1, sizeof(*nm));
 	if (parent)
 		parent->next = nm;
 
 	nm->level = lev;
-	nm->name = strdup(fname);
-	if (!nm->name)
-		err(EXIT_FAILURE, _("out of memory?"));
-	if (lstat(path, &nm->st) == -1)
-		err(EXIT_FAILURE, _("could not stat '%s'"), path);
+	nm->name = xstrdup(fname);
+
+	nm->noent = (lstat(path, &nm->st) == -1);
+	if (nm->noent)
+		return nm;
 
 	if (S_ISLNK(nm->st.st_mode))
 		readlink_to_namei(nm, path);
@@ -289,9 +280,7 @@ add_namei(struct namei *parent, const char *orgpath, int start, struct namei **l
 		nm = parent;
 		level = parent->level + 1;
 	}
-	path = strdup(orgpath);
-	if (!path)
-		err(EXIT_FAILURE, _("out of memory?"));
+	path = xstrdup(orgpath);
 	fname = path + start;
 
 	/* root directory */
@@ -325,9 +314,11 @@ add_namei(struct namei *parent, const char *orgpath, int start, struct namei **l
 
 	if (last)
 		*last = nm;
+
+	free(path);
+
 	return first;
 }
-
 
 static int
 follow_symlinks(struct namei *nm)
@@ -337,6 +328,8 @@ follow_symlinks(struct namei *nm)
 	for (; nm; nm = nm->next) {
 		struct namei *next, *last;
 
+		if (nm->noent)
+			continue;
 		if (!S_ISLNK(nm->st.st_mode))
 			continue;
 		if (++symcount > MAXSYMLINKS) {
@@ -355,53 +348,21 @@ follow_symlinks(struct namei *nm)
 	return 0;
 }
 
-static void
-strmode(mode_t mode, char *str)
-{
-	if (S_ISDIR(mode))
-		str[0] = 'd';
-	else if (S_ISLNK(mode))
-		str[0] = 'l';
-	else if (S_ISCHR(mode))
-		str[0] = 'c';
-	else if (S_ISBLK(mode))
-		str[0] = 'b';
-	else if (S_ISSOCK(mode))
-		str[0] = 's';
-	else if (S_ISFIFO(mode))
-		str[0] = 'p';
-	else if (S_ISREG(mode))
-		str[0] = '-';
-
-	str[1] = mode & S_IRUSR ? 'r' : '-';
-	str[2] = mode & S_IWUSR ? 'w' : '-';
-	str[3] = (mode & S_ISUID
-		? (mode & S_IXUSR ? 's' : 'S')
-		: (mode & S_IXUSR ? 'x' : '-'));
-	str[4] = mode & S_IRGRP ? 'r' : '-';
-	str[5] = mode & S_IWGRP ? 'w' : '-';
-	str[6] = (mode & S_ISGID
-		? (mode & S_IXGRP ? 's' : 'S')
-		: (mode & S_IXGRP ? 'x' : '-'));
-	str[7] = mode & S_IROTH ? 'r' : '-';
-	str[8] = mode & S_IWOTH ? 'w' : '-';
-	str[9] = (mode & S_ISVTX
-		? (mode & S_IXOTH ? 't' : 'T')
-		: (mode & S_IXOTH ? 'x' : '-'));
-	str[10] = '\0';
-}
-
-static void
+static int
 print_namei(struct namei *nm, char *path)
 {
-	struct namei *prev = NULL;
 	int i;
 
 	if (path)
 		printf("f: %s\n", path);
 
-	for (; nm; prev = nm, nm = nm->next) {
+	for (; nm; nm = nm->next) {
 		char md[11];
+
+		if (nm->noent) {
+			printf(_("%s - No such file or directory\n"), nm->name);
+			return -1;
+		}
 
 		strmode(nm->st.st_mode, md);
 
@@ -436,35 +397,39 @@ print_namei(struct namei *nm, char *path)
 		else
 			printf(" %s\n", nm->name);
 	}
+	return 0;
 }
 
-static void
-usage(int rc)
+static void usage(int rc)
 {
 	const char *p = program_invocation_short_name;
+	FILE *out = rc == EXIT_FAILURE ? stderr : stdout;
 
 	if (!*p)
 		p = "namei";
 
-	printf(_("\nUsage: %s [options] pathname [pathname ...]\n"), p);
-	printf(_("\nOptions:\n"));
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out,
+	      _(" %s [options] pathname [pathname ...]\n"), p);
 
-	printf(_(
-	" -h, --help          displays this help text\n"
-	" -x, --mountpoints   show mount point directories with a 'D'\n"
-	" -m, --modes         show the mode bits of each file\n"
-	" -o, --owners        show owner and group name of each file\n"
-	" -l, --long          use a long listing format (-m -o -v) \n"
-	" -n, --nosymlinks    don't follow symlinks\n"
-	" -v, --vertical      vertical align of modes and owners\n"));
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -h, --help          displays this help text\n"
+		" -V, --version       output version information and exit\n"
+		" -x, --mountpoints   show mount point directories with a 'D'\n"
+		" -m, --modes         show the mode bits of each file\n"
+		" -o, --owners        show owner and group name of each file\n"
+		" -l, --long          use a long listing format (-m -o -v) \n"
+		" -n, --nosymlinks    don't follow symlinks\n"
+		" -v, --vertical      vertical align of modes and owners\n"), out);
 
-	printf(_("\nFor more information see namei(1).\n"));
+	fputs(_("\nFor more information see namei(1).\n"), out);
 	exit(rc);
 }
 
-struct option longopts[] =
+static const struct option longopts[] =
 {
 	{ "help",	0, 0, 'h' },
+	{ "version",    0, 0, 'V' },
 	{ "mountpoints",0, 0, 'x' },
 	{ "modes",	0, 0, 'm' },
 	{ "owners",	0, 0, 'o' },
@@ -477,22 +442,22 @@ struct option longopts[] =
 int
 main(int argc, char **argv)
 {
-	extern int optind;
 	int c;
+	int rc = EXIT_SUCCESS;
 
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
-	if (argc < 2)
-		usage(EXIT_FAILURE);
-
-	while ((c = getopt_long(argc, argv, "+h?lmnovx", longopts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "hVlmnovx", longopts, NULL)) != -1) {
 		switch(c) {
 		case 'h':
-		case '?':
 			usage(EXIT_SUCCESS);
 			break;
+		case 'V':
+			printf(_("%s from %s\n"), program_invocation_short_name,
+						  PACKAGE_STRING);
+			return EXIT_SUCCESS;
 		case 'l':
 			flags |= (NAMEI_OWNERS | NAMEI_MODES | NAMEI_VERTICAL);
 			break;
@@ -510,7 +475,15 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			flags |= NAMEI_VERTICAL;
+			break;
+		default:
+			usage(EXIT_FAILURE);
 		}
+	}
+
+	if (optind == argc) {
+		warnx(_("pathname argument is missing"));
+		usage(EXIT_FAILURE);
 	}
 
 	for(; optind < argc; optind++) {
@@ -519,25 +492,29 @@ main(int argc, char **argv)
 		struct stat st;
 
 		if (stat(path, &st) != 0)
-			err(EXIT_FAILURE, _("failed to stat: %s"), path);
+			rc = EXIT_FAILURE;
 
 		nm = add_namei(NULL, path, 0, NULL);
 		if (nm) {
 			int sml = 0;
 			if (!(flags & NAMEI_NOLINKS))
 				sml = follow_symlinks(nm);
-			print_namei(nm, path);
+			if (print_namei(nm, path)) {
+				rc = EXIT_FAILURE;
+				continue;
+			}
 			free_namei(nm);
-			if (sml == -1)
-				errx(EXIT_FAILURE,
-					_("%s: exceeded limit of symlinks"),
-					path);
+			if (sml == -1) {
+				rc = EXIT_FAILURE;
+				warnx(_("%s: exceeded limit of symlinks"), path);
+				continue;
+			}
 		}
 	}
 
 	free_idcache(ucache);
 	free_idcache(gcache);
 
-	return EXIT_SUCCESS;
+	return rc;
 }
 

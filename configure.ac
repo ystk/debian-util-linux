@@ -1,11 +1,13 @@
-AC_INIT(util-linux-ng, 2.17.2, kzak@redhat.com)
+AC_INIT(util-linux,
+	m4_esyscmd([tools/git-version-gen .tarball-version]),
+	kzak@redhat.com)
 
 AC_PREREQ(2.60)
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([check-news -Wall foreign 1.9 dist-bzip2])
+AM_INIT_AUTOMAKE([-Wall foreign 1.10 dist-bzip2 -Wno-portability])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])],
                             [AC_SUBST([AM_DEFAULT_VERBOSITY], [1])])
@@ -22,7 +24,7 @@ PACKAGE_VERSION_RELEASE=0
 
 dnl libblkid version
 LIBBLKID_VERSION="$PACKAGE_VERSION_MAJOR.$PACKAGE_VERSION_MINOR.$PACKAGE_VERSION_RELEASE"
-LIBBLKID_DATE="22-Mar-2010"
+LIBBLKID_DATE="19-Oct-2011"
 LIBBLKID_LT_MAJOR=1
 LIBBLKID_LT_MINOR=1
 LIBBLKID_LT_MICRO=0
@@ -34,6 +36,13 @@ LIBUUID_LT_MAJOR=1
 LIBUUID_LT_MINOR=3
 LIBUUID_LT_MICRO=0
 LIBUUID_VERSION_INFO=`expr $LIBUUID_LT_MAJOR + $LIBUUID_LT_MINOR`:$LIBUUID_LT_MICRO:$LIBUUID_LT_MINOR
+
+dnl libmount version
+LIBMOUNT_VERSION="$PACKAGE_VERSION_MAJOR.$PACKAGE_VERSION_MINOR.$PACKAGE_VERSION_RELEASE"
+LIBMOUNT_LT_MAJOR=1
+LIBMOUNT_LT_MINOR=1
+LIBMOUNT_LT_MICRO=0
+LIBMOUNT_VERSION_INFO=`expr $LIBMOUNT_LT_MAJOR + $LIBMOUNT_LT_MINOR`:$LIBMOUNT_LT_MICRO:$LIBMOUNT_LT_MINOR
 
 # Check whether exec_prefix=/usr:
 case $exec_prefix:$prefix in
@@ -66,7 +75,7 @@ AC_SUBST([usrsbin_execdir])
 usrlib_execdir='${exec_prefix}/'$libdirname
 AC_SUBST([usrlib_execdir])
 
-
+AM_PROG_CC_C_O
 AC_PROG_CC_STDC
 AC_GNU_SOURCE
 AC_CANONICAL_HOST
@@ -77,6 +86,12 @@ AC_C_BIGENDIAN
 dnl libtool-2
 LT_INIT
 
+m4_ifndef([PKG_PROG_PKG_CONFIG],
+  [m4_fatal([Could not locate the pkg-config autoconf
+    macros. These are usually located in /usr/share/aclocal/pkg.m4.
+    If your macros are in a different location, try setting the
+    environment variable AL_OPTS="-I/other/macro/dir" before running
+    ./autogen.sh or autoreconf again.])])
 PKG_PROG_PKG_CONFIG
 
 GTK_DOC_CHECK([1.10])
@@ -103,13 +118,16 @@ AC_CHECK_HEADERS(
 	[err.h \
 	errno.h \
 	getopt.h \
-	langinfo.h \
 	linux/fd.h \
 	linux/tiocl.h \
 	linux/version.h \
+	linux/falloc.h \
+	linux/cdrom.h \
+	fcntl.h \
 	locale.h \
 	stdint.h \
 	inttypes.h \
+	paths.h \
 	pty.h \
 	mntent.h \
         net/if.h \
@@ -117,9 +135,11 @@ AC_CHECK_HEADERS(
         netinet/in.h \
 	rpcsvc/nfs_prot.h \
 	stdlib.h \
+	asm/io.h \
 	sys/disk.h \
 	sys/disklabel.h \
 	sys/ioctl.h \
+	sys/ioccom.h \
 	sys/io.h \
 	sys/time.h \
 	sys/mkdev.h \
@@ -136,9 +156,15 @@ AC_CHECK_HEADERS(
 	sys/user.h \
 	sys/resource.h \
 	unistd.h ])
+
 AC_CHECK_HEADERS([linux/raw.h],
 		 [AM_CONDITIONAL([HAVE_RAW], [true])],
 		 [AM_CONDITIONAL([HAVE_RAW], [false])])
+
+AC_CHECK_HEADERS([langinfo.h],
+		[AM_CONDITIONAL([HAVE_LANGINFO], [true])],
+		[AM_CONDITIONAL([HAVE_LANGINFO], [false])])
+
 
 AC_CHECK_DECLS([_NL_TIME_WEEK_1STDAY],[],[],[[#include <langinfo.h>]])
 
@@ -158,6 +184,8 @@ AC_CHECK_DECL([lseek64],
 
 AC_CHECK_FUNCS(
 	[inet_aton \
+	err \
+	errx \
 	futimens \
 	fstat64 \
 	fsync \
@@ -174,24 +202,84 @@ AC_CHECK_FUNCS(
 	strtoull \
 	sysconf \
 	getdtablesize \
+	getexecname \
 	getrlimit \
+	sigqueue \
 	srandom \
 	setresgid \
 	setresuid \
+	strndup \
+	strnlen \
+	strnchr \
 	inotify_init \
 	prctl \
 	posix_fadvise \
 	getmntinfo \
 	__secure_getenv \
+	warn \
+	warnx \
 	rpmatch])
 AC_FUNC_FSEEKO
 
 AC_CHECK_FUNCS([openat fstatat unlinkat], [have_openat=yes], [have_openat=no])
 
+AC_CHECK_FUNCS([ioperm iopl], [have_io=yes])
+AM_CONDITIONAL([BUILD_HWCLOCK], test "x$have_io" = xyes -o "x$linux_os" = xyes)
+
 AC_CHECK_MEMBER(struct sockaddr.sa_len,
 		AC_DEFINE_UNQUOTED(HAVE_SA_LEN,1,[Define if struct sockaddr contains sa_len]),,
 	[#include <sys/types.h>
 	 #include <sys/socket.h>])
+
+SOCKET_LIBS=
+AC_SEARCH_LIBS([gethostbyname], [nsl],
+	[if test x"$ac_cv_search_gethostbyname" != x"none required"; then
+		SOCKET_LIBS="$SOCKET_LIBS -lnsl";
+	 fi])
+AC_SEARCH_LIBS([socket], [socket],
+	[if test x"$ac_cv_search_socket" != x"none required"; then
+		SOCKET_LIBS="$SOCKET_LIBS -lsocket";
+	fi])
+AC_SUBST([SOCKET_LIBS])
+
+
+have_dirfd=no
+AC_CHECK_FUNCS([dirfd], [have_dirfd=yes], [have_dirfd=no])
+if test x"$have_dirfd" = xno ; then
+	AC_CHECK_DECLS([dirfd],
+		[have_dirfd=yes], [have_dirfd=no],
+		[#include <sys/types.h>
+		 #include <dirent.h>])
+fi
+
+have_ddfd=no
+if test x"$have_dirfd" = xno ; then
+	AC_CHECK_MEMBERS([DIR.dd_fd],
+		[have_ddfd=yes], [have_ddfd=no],
+		[#include <sys/types.h>
+		 #include <dirent.h>])
+fi
+
+case "$have_dirfd:$have_ddfd" in
+no:no)
+  AC_MSG_ERROR([cannot find a method to get filedescriptor of directory]) ;;
+esac
+
+
+AC_MSG_CHECKING(whether program_invocation_short_name is defined)
+AC_TRY_COMPILE([#include <argp.h>],
+               [program_invocation_short_name = "test";],
+               AC_DEFINE(HAVE_PROGRAM_INVOCATION_SHORT_NAME, 1,
+                         [Define if program_invocation_short_name is defined])
+               AC_MSG_RESULT(yes),
+               AC_MSG_RESULT(no))
+
+AC_MSG_CHECKING([whether __progname is defined])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([extern char *__progname;],
+           [if (*__progname == 0) return;])],
+           AC_DEFINE(HAVE___PROGNAME, 1, [Define if __progname is defined])
+           AC_MSG_RESULT(yes),
+           AC_MSG_RESULT(no))
 
 dnl Static compilation
 m4_define([UTIL_STATIC_PROGRAMS], [losetup, mount, umount, fdisk, sfdisk, blkid])
@@ -282,6 +370,22 @@ AC_ARG_ENABLE([fsck],
 AM_CONDITIONAL(BUILD_FSCK, test "x$enable_fsck" = xyes)
 
 
+AC_ARG_ENABLE([partx],
+  AS_HELP_STRING([--disable-partx], [do not build addpart, delpart, partx]),
+  [], enable_partx=check
+)
+build_partx=yes
+if test "x$enable_partx" = xcheck; then
+  if test "x$linux_os" = xno; then
+    AC_MSG_WARN([non-linux system; do not build partx utilities])
+    build_partx=no
+  fi
+elif test "x$enable_partx" = xno; then
+    build_partx=no
+fi
+AM_CONDITIONAL(BUILD_PARTX, test "x$build_partx" = xyes)
+
+
 AC_ARG_ENABLE([libuuid],
   AS_HELP_STRING([--disable-libuuid], [do not build libuuid and uuid utilities]),
   [], enable_libuuid=yes
@@ -289,33 +393,12 @@ AC_ARG_ENABLE([libuuid],
 AC_SUBST([LIBUUID_VERSION])
 AC_SUBST([LIBUUID_VERSION_INFO])
 AM_CONDITIONAL(BUILD_LIBUUID, test "x$enable_libuuid" = xyes)
-have_uuid=yes
 
-if test "x$enable_libuuid" = xno; then
-  # Check for external (e2fsprogs) libuuid
-  PKG_CHECK_MODULES(UUID, uuid, [have_uuid=yes], [have_uuid=no])
-  if test "x$have_uuid" = xno; then
-    # system without pkg-config or so, try classic check
-    AC_CHECK_LIB(uuid, uuid_is_null, [have_uuid=yes], [have_uuid=no])
-  fi
-  if test "x$have_uuid" = xyes; then
-    UTIL_SET_FLAGS($UUID_CFLAGS, $UUID_CFLAGS, $UUID_LIBS)
-    AC_CHECK_HEADERS([uuid.h uuid/uuid.h], [break], [])
-    UTIL_RESTORE_FLAGS
-  fi
-else
-  # internal library
-  AC_DEFINE(HAVE_UUID_H, 1, [Define to 1 if you have the <uuid.h> header file.])
-fi
-
-if test "x$have_uuid" = xyes; then
+if test "x$enable_libuuid" = xyes; then
   AC_DEFINE(HAVE_LIBUUID, 1, [Define to 1 if you have the -luuid.])
 else
   AC_MSG_WARN([uuid library is not found; mkswap(8) will not generate UUIDs])
 fi
-AM_CONDITIONAL(HAVE_UUID, test "x$have_uuid" = xyes)
-# default
-: ${UUID_LIBS='-luuid'}
 
 
 AC_ARG_ENABLE([uuidd],
@@ -323,11 +406,11 @@ AC_ARG_ENABLE([uuidd],
   [], enable_uuidd=auto
 )
 
-case "$enable_uuidd:$have_uuid" in
+case "$enable_uuidd:$enable_libuuid" in
 yes:no)
   AC_MSG_ERROR([cannot enable uuidd when libuuid is disabled]) ;;
 auto:*)
-  enable_uuidd=$have_uuid ;;
+  enable_uuidd=$enable_libuuid ;;
 esac
 if test "x$enable_uuidd" = xyes; then
   AC_DEFINE(HAVE_UUIDD, 1, [Define to 1 if you want to use uuid daemon.])
@@ -345,47 +428,120 @@ AC_SUBST([LIBBLKID_VERSION_INFO])
 AM_CONDITIONAL(BUILD_LIBBLKID, test "x$enable_libblkid" = xyes)
 AC_DEFINE_UNQUOTED(LIBBLKID_VERSION, "$LIBBLKID_VERSION", [libblkid version string])
 AC_DEFINE_UNQUOTED(LIBBLKID_DATE, "$LIBBLKID_DATE", [libblkid date string])
-have_blkid=yes
 
-if test "x$enable_libblkid" = xno; then
-  if test "x$build_mount" = xyes || test "x$enable_fsck" = xyes; then
-    # Check for external (e2fsprogs) libblkid
-    PKG_CHECK_MODULES(BLKID, blkid, [have_blkid=yes], [have_blkid=no])
-    if test "x$have_blkid" = xno; then
-      # system without pkg-config or so, try classic check
-      AC_CHECK_LIB(blkid, blkid_get_cache, [have_blkid=yes], [have_blkid=no])
-    fi
-    if test "x$have_blkid" = xyes; then
-      UTIL_SET_FLAGS($BLKID_CFLAGS, $BLKID_CFLAGS, $BLKID_LIBS)
-      AC_CHECK_HEADERS([blkid.h blkid/blkid.h], [break], [])
-      UTIL_RESTORE_FLAGS
-    fi
-    if test -n "$enable_static_programs"; then
-      # TODO check only when mount of fsck are requested
-      UTIL_PKG_STATIC([BLKID_LIBS_STATIC], [blkid])
-    fi
-  fi
-else
-  # internal library
-  AC_DEFINE(HAVE_BLKID_H, 1, [Define to 1 if you have the <blkid.h> header file.])
-  AC_DEFINE(HAVE_LIBBLKID_INTERNAL, 1, [Define to 1 if you have the in-tree libblkid.])
-fi
-
-if test "x$have_blkid" = xyes; then
+if test "x$enable_libblkid" = xyes; then
   AC_DEFINE(HAVE_LIBBLKID, 1, [Define to 1 if you have the -lblkid.])
 else
   if test "x$build_mount" = xyes; then
-    AC_MSG_ERROR([libblkid is needed to build util-linux-ng mount])
+    AC_MSG_ERROR([libblkid is needed to build util-linux mount])
   fi
   if test "x$enable_fsck" = xyes; then
-    AC_MSG_ERROR([libblkid is needed to build util-linux-ng fsck])
+    AC_MSG_ERROR([libblkid is needed to build util-linux fsck])
+  fi
+  if test "x$build_partx" = xyes; then
+    AC_MSG_ERROR([libblkid is needed to build util-linux partx])
   fi
 fi
-AM_CONDITIONAL(HAVE_BLKID, test "x$have_blkid" = xyes)
-# default
-: ${BLKID_LIBS='-lblkid -luuid'}
 
-AC_ARG_VAR([BLKID_LIBS_STATIC], [-l options for linking statically with blkid])
+
+AC_ARG_ENABLE([libmount],
+  AS_HELP_STRING([--disable-libmount], [do not build libmount]),
+  [], enable_libmount=check
+)
+build_libmount=yes
+if test "x$enable_libmount" = xcheck; then
+  if test "x$linux_os" = xno; then
+    AC_MSG_WARN([non-linux system; do not build libmount])
+    build_libmount=no
+  fi
+elif test "x$enable_libmount" = xno; then
+    build_libmount=no
+fi
+
+AC_DEFUN([UTIL_SCANF_TYPE_MODIFIER], [dnl
+# include <stdio.h>
+int main()
+{
+	int i;
+	char *s;
+	i = sscanf("x", $1, &s);
+	if (i == 1)
+		return 0;
+	return 1;
+}])
+AC_MSG_CHECKING([needed scanf type modifiers])
+AC_CACHE_VAL([scanf_cv_type_modifier],
+  AC_RUN_IFELSE([AC_LANG_SOURCE([UTIL_SCANF_TYPE_MODIFIER(["%ms"])])],
+    [scanf_cv_type_modifier=ms],
+    AC_RUN_IFELSE([AC_LANG_SOURCE([UTIL_SCANF_TYPE_MODIFIER(["%as"])])],
+      [scanf_cv_type_modifier=as],
+      [scanf_cv_type_modifier=no]
+    )
+  )
+)
+
+case "$scanf_cv_type_modifier" in
+ms)
+  AC_MSG_RESULT([(%ms) yes])
+  AC_DEFINE([HAVE_SCANF_MS_MODIFIER], [1], [scanf %ms modifier]) ;;
+as)
+  AC_MSG_RESULT([(%as) yes])
+  AC_DEFINE([HAVE_SCANF_AS_MODIFIER], [1], [scanf %as modifier]) ;;
+*)
+  AC_MSG_RESULT([no])
+  if "x$build_libmount" = xyes; then
+    AC_MSG_WARN([%as or %ms for sscanf() not found; do not build libmount])
+    build_libmount=no
+  fi
+esac
+
+
+case "$enable_libblkid:$build_libmount" in
+no:yes)
+  AC_MSG_ERROR([cannot enable libmount when libblkid is disabled]) ;;
+esac
+
+AC_SUBST([LIBMOUNT_VERSION])
+AC_SUBST([LIBMOUNT_VERSION_INFO])
+AC_DEFINE_UNQUOTED(LIBMOUNT_VERSION, "$LIBMOUNT_VERSION", [libmount version string])
+AM_CONDITIONAL(BUILD_LIBMOUNT, test "x$build_libmount" = xyes)
+
+
+AC_ARG_ENABLE([libmount-mount],
+  AS_HELP_STRING([--enable-libmount-mount], [link mount(8) with libmount (EXPERIMENTAL)]),
+  [], enable_libmount_mount=no
+)
+
+case "$build_libmount:$enable_libmount_mount" in
+no:yes)
+  AC_MSG_ERROR([cannot link mount(8) with libmount when libmount is disabled]) ;;
+yes:yes)
+  AC_DEFINE(HAVE_LIBMOUNT_MOUNT, 1, [use libmount for mount(8)])
+esac
+AM_CONDITIONAL(BUILD_LIBMOUNT_MOUNT, test "x$enable_libmount_mount" = xyes)
+
+
+AC_ARG_ENABLE([mountpoint],
+  AS_HELP_STRING([--disable-mountpoint], [do not build mountpoint]),
+  [], enable_mountpoint=check
+)
+
+build_mountpoint=yes
+if test "x$enable_mountpoint" = xcheck; then
+  if test "x$build_libmount" = xno; then
+    AC_MSG_WARN([libmount disabled; do not build mountpoint])
+    build_mountpoint=no
+  fi
+elif test "x$enable_mountpoint" = xno; then
+    build_mountpoint=no
+fi
+
+case "$build_libmount:$build_mountpoint" in
+no:yes)
+  AC_MSG_ERROR([cannot enable mountpoint when libmount is disabled]) ;;
+esac
+AM_CONDITIONAL(BUILD_MOUNTPOINT, test "x$build_mountpoint" = xyes)
+
 
 UTIL_CHECK_LIB(util, openpty)
 UTIL_CHECK_LIB(termcap, tgetnum)
@@ -412,6 +568,7 @@ if test "x$with_ncurses" != xno; then
     if test "x$with_ncurses" = xauto; then
       UTIL_CHECK_LIB(ncursesw, initscr, ncurses)
       if test "x$have_ncurses" = xyes; then
+        AC_CHECK_HEADERS([ncursesw/ncurses.h])
         NCURSES_LIBS="-lncursesw"
       fi
     fi
@@ -440,7 +597,15 @@ AM_CONDITIONAL(HAVE_TINFO, test "x$have_tinfo" = xyes)
 
 use_slang=no
 if test "x$with_slang" = xyes; then
-  AC_CHECK_HEADERS([slcurses.h slang/slcurses.h], [use_slang=yes])
+  AC_CHECK_HEADERS([slang.h slang/slang.h])
+  AC_CHECK_HEADERS([slcurses.h slang/slcurses.h],
+                   [use_slang=yes], [], [
+#ifdef HAVE_SLANG_H
+#include <slang.h>
+#elif defined(HAVE_SLANG_SLANG_H)
+#include <slang/slang.h>
+#endif
+])
   if test "x$use_slang" = xno; then
     AC_MSG_ERROR([slang selected but slcurses.h not found])
   fi
@@ -448,16 +613,42 @@ fi
 AM_CONDITIONAL(USE_SLANG, test "x$use_slang" = xyes)
 
 
+AC_ARG_WITH([utempter],
+  AS_HELP_STRING([--with-utempter], [compile script(1) with libutempter]),
+  [], with_utempter=no
+)
+
+if test "x$with_utempter" = xyes; then
+  UTIL_CHECK_LIB(utempter, utempter_add_record)
+  if test "x$have_utempter" = xno; then
+    AC_MSG_ERROR([utempter selected but libutempter not found])
+  fi
+else
+  AM_CONDITIONAL(HAVE_UTEMPTER, false)
+fi
+
+# on Solaris, you can't mix and match standards, since we use c99
+# aparently at this stage, XOPEN_SOURCE will conflict.  As workaround,
+# check for crypt.h and use that without XOPEN_SOURCE.
+AC_CHECK_HEADERS([crypt.h])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#else
 #define _XOPEN_SOURCE
 #include <unistd.h>
+#endif
 ]], [[
 char *c = crypt("abc","pw");
 ]])],[],[
   LIBS="$LIBS -lcrypt"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+  #ifdef HAVE_CRYPT_H
+  #include <crypt.h>
+  #else
   #define _XOPEN_SOURCE
   #include <unistd.h>
+  #endif
   ]], [[
   char *c = crypt("abc","pw");
   ]])],[
@@ -470,18 +661,10 @@ char *c = crypt("abc","pw");
 
 AM_CONDITIONAL(NEED_LIBCRYPT, test "x$need_libcrypt" = xyes)
 
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <stdio.h>
-]], [[
-printf(__progname);
-]])],
-[AC_DEFINE(HAVE___PROGNAME, 1, Do we have __progname?)
-])
-
-
 AC_CHECK_TYPES([union semun], [], [], [[
 #include <sys/sem.h>
 ]])
+AC_CHECK_TYPES(loff_t)
 
 
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
@@ -580,7 +763,40 @@ UTIL_CHECK_SYSCALL([ioprio_get],
 
 dnl fallocate could be available as libc function or as syscall only
 UTIL_CHECK_SYSCALL([fallocate])
-AC_CHECK_FUNCS([fallocate])
+
+dnl check for valid fallocate() function
+dnl with 32 bits glibc 2.10, fallocate() exists but not fallocate64()
+dnl when _FILE_OFFSET_BITS==64, fallocate() is redirect to fallocate64()
+dnl and program can't be linked.
+dnl AC_CHECK_FUNC can't catch such errors since it's redefining
+dnl function prototype.
+AC_MSG_CHECKING([for valid fallocate() function])
+AC_LINK_IFELSE([
+AC_LANG_PROGRAM([[
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef HAVE_LINUX_FALLOC_H
+# include <linux/falloc.h>
+#endif
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
+]],[[
+   long ret;
+
+   ret = fallocate(0, FALLOC_FL_KEEP_SIZE, 0xfffffffful, 0xfffffffful);
+
+   if (ret != 0) {
+      return 1;
+   }
+   ]])],[
+AC_MSG_RESULT([yes])
+AC_DEFINE(HAVE_FALLOCATE,1,[Have valid fallocate() function])],[
+AC_MSG_RESULT([no])])
 
 dnl unshare could be available as libc function or as syscall only
 UTIL_CHECK_SYSCALL([unshare])
@@ -601,7 +817,11 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 AC_CHECK_MEMBERS([struct termios.c_line],,,
     [[#include <termios.h>]])
 
+AC_CHECK_MEMBERS([struct stat.st_mtim.tv_nsec],,,
+	[#include <sys/stat.h>])
+
 AC_CHECK_DECLS([
+ UNAME26,
  ADDR_NO_RANDOMIZE,
  FDPIC_FUNCPTRS,
  MMAP_PAGE_ZERO,
@@ -626,6 +846,17 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 ],
 [AC_MSG_NOTICE([Your libc thinks that swapon has 1 arg only.])
 ])
+
+
+AC_CHECK_TYPES([cpu_set_t], [have_cpu_set_t=yes], [], [[
+#include <sched.h>
+]])
+
+AM_CONDITIONAL(HAVE_CPU_SET_T, [test "x$have_cpu_set_t" = xyes])
+
+AC_CHECK_DECLS([CPU_ALLOC], [], [], [[
+#include <sched.h>
+]])
 
 
 dnl UTIL_SET_ARCH(ARCHNAME, PATTERN)
@@ -654,6 +885,12 @@ AC_ARG_ENABLE([arch],
 )
 AM_CONDITIONAL(BUILD_ARCH, test "x$enable_arch" = xyes)
 
+AC_ARG_ENABLE([ddate],
+  AS_HELP_STRING([--enable-ddate], [do build ddate]),
+  [], enable_ddate=no
+)
+AM_CONDITIONAL(BUILD_DDATE, test "x$enable_ddate" = xyes)
+
 AC_ARG_ENABLE([agetty],
   AS_HELP_STRING([--disable-agetty], [do not build agetty]),
   [], enable_agetty=yes
@@ -677,6 +914,15 @@ else
 fi
 AM_CONDITIONAL(BUILD_CRAMFS, test "x$build_cramfs" = xyes)
 
+build_lsblk=yes
+if test "x$have_openat" = xno; then
+  AC_MSG_WARN([openat() function not found; do not build lsblk])
+  build_lsblk=no
+elif test "x$linux_os" = xno; then
+  AC_MSG_WARN([non-linux system; do not build lsblk])
+  build_lsblk=no
+fi
+AM_CONDITIONAL(BUILD_LSBLK, test "x$build_lsblk" = xyes)
 
 AC_ARG_ENABLE([switch_root],
   AS_HELP_STRING([--disable-switch_root], [do not build switch_root]),
@@ -781,14 +1027,6 @@ AC_ARG_ENABLE([elvtune],
 )
 AM_CONDITIONAL(BUILD_ELVTUNE, test "x$enable_elvtune" = xyes)
 
-
-AC_ARG_ENABLE([init],
-  AS_HELP_STRING([--enable-init], [build simpleinit, shutdown, initctl]),
-  [], enable_init=no
-)
-AM_CONDITIONAL(BUILD_INIT, test "x$enable_init" = xyes)
-
-
 AC_ARG_ENABLE([kill],
   AS_HELP_STRING([--enable-kill], [build kill]),
   [], enable_kill=no
@@ -802,6 +1040,11 @@ AC_ARG_ENABLE([last],
 )
 AM_CONDITIONAL(BUILD_LAST, test "x$enable_last" = xyes)
 
+AC_ARG_ENABLE([line],
+  AS_HELP_STRING([--enable-line], [build line]),
+  [], enable_line=no
+)
+AM_CONDITIONAL(BUILD_LINE, test "x$enable_line" = xyes)
 
 AC_ARG_ENABLE([mesg],
   AS_HELP_STRING([--enable-mesg], [build mesg]),
@@ -810,25 +1053,11 @@ AC_ARG_ENABLE([mesg],
 AM_CONDITIONAL(BUILD_MESG, test "x$enable_mesg" = xyes)
 
 
-AC_ARG_ENABLE([partx],
-  AS_HELP_STRING([--enable-partx], [build addpart, delpart, partx]),
-  [], enable_partx=no
-)
-AM_CONDITIONAL(BUILD_PARTX, test "x$enable_partx" = xyes)
-
-
 AC_ARG_ENABLE([raw],
   AS_HELP_STRING([--enable-raw], [build raw]),
   [], enable_raw=no
 )
 AM_CONDITIONAL(BUILD_RAW, test "x$enable_raw" = xyes)
-
-
-AC_ARG_ENABLE([rdev],
-  AS_HELP_STRING([--enable-rdev], [build rdev on i386]),
-  [], enable_rdev=no
-)
-AM_CONDITIONAL(BUILD_RDEV, test "x$enable_rdev" = xyes)
 
 
 AC_ARG_ENABLE([rename],
@@ -977,6 +1206,34 @@ if test "x$enable_require_password" = xyes; then
 fi
 
 
+AC_DEFUN([FS_PATHS_DEFAULT], [/sbin:/sbin/fs.d:/sbin/fs])
+AC_ARG_ENABLE([fs-paths-default],
+  AS_HELP_STRING([--enable-fs-paths-default=paths], [default search path for fs helpers @<:@FS_PATHS_DEFAULT@:>@]),
+  [case "$enableval" in
+     yes) fs_paths_defaults="FS_PATHS_DEFAULT" ;;
+      no) fs_paths_defaults="" ;;
+       *) fs_paths_defaults="$enableval" ;;
+   esac],
+  [fs_paths_defaults="FS_PATHS_DEFAULT"]
+)
+AC_ARG_ENABLE([fs-paths-extra],
+  AS_HELP_STRING([--enable-fs-paths-extra=paths], [additional search paths for fs helpers]),
+  [case "$enableval" in
+     yes|no) fs_paths_extra="" ;;
+          *) fs_paths_extra="$enableval" ;;
+    esac],
+  [fs_paths_extra=""]
+)
+fs_paths="$fs_paths_defaults"
+if test "x$fs_paths_extra" != "x"; then
+  if test "x$fs_paths" != "x"; then
+    fs_paths="${fs_paths}:"
+  fi
+  fs_paths="${fs_paths}${fs_paths_extra}"
+fi
+AC_DEFINE_UNQUOTED([FS_SEARCH_PATH], "$fs_paths", [search path for fs helpers])
+
+
 AC_ARG_ENABLE([use-tty-group],
   AS_HELP_STRING([--disable-use-tty-group], [do not install wall and write setgid tty]),
   [], enable_use_tty_group=yes
@@ -1020,28 +1277,36 @@ include/Makefile
 lib/Makefile
 login-utils/Makefile
 Makefile
+man/ru/Makefile
 misc-utils/chkdupexe:misc-utils/chkdupexe.pl
 misc-utils/Makefile
 mount/Makefile
 partx/Makefile
 po/Makefile.in
 schedutils/Makefile
-shlibs/blkid/blkid.pc
-shlibs/blkid/Makefile
-shlibs/blkid/docs/Makefile
-shlibs/blkid/docs/version.xml
-shlibs/blkid/src/Makefile
-shlibs/blkid/src/blkid.h
-shlibs/blkid/src/superblocks/Makefile
-shlibs/blkid/src/topology/Makefile
-shlibs/blkid/src/partitions/Makefile
-shlibs/blkid/samples/Makefile
-shlibs/uuid/uuid.pc
-shlibs/uuid/Makefile
-shlibs/uuid/man/Makefile
-shlibs/uuid/src/Makefile
-shlibs/Makefile
+libblkid/blkid.pc
+libblkid/Makefile
+libblkid/docs/Makefile
+libblkid/docs/version.xml
+libblkid/src/Makefile
+libblkid/src/blkid.h
+libblkid/src/superblocks/Makefile
+libblkid/src/topology/Makefile
+libblkid/src/partitions/Makefile
+libblkid/samples/Makefile
+libmount/mount.pc
+libmount/Makefile
+libmount/src/Makefile
+libmount/src/libmount.h
+libmount/docs/Makefile
+libmount/docs/version.xml
+libmount/samples/Makefile
+libuuid/uuid.pc
+libuuid/Makefile
+libuuid/man/Makefile
+libuuid/src/Makefile
 sys-utils/Makefile
+term-utils/Makefile
 tests/commands.sh
 tests/helpers/Makefile
 tests/Makefile

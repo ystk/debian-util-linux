@@ -26,7 +26,7 @@
    59 Bcy, 3161:       PRAISE_BOB and KILL_BOB options split, other minor
                        changes.
 
-   1999-02-22 Arkadiusz Mi¶kiewicz <misiek@pld.ORG.PL>
+   1999-02-22 Arkadiusz Miskiewicz <misiek@pld.ORG.PL>
    - added Native Language Support
 
    2000-03-17 Burt Holzman <bnh@iname.com>
@@ -61,7 +61,9 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+
 #include "nls.h"
+#include "c.h"
 
 #ifndef __GNUC__
 #define inline /* foo */
@@ -103,14 +105,14 @@ struct disc_time {
 
 char *excl[] = {
     "Hail Eris!", "All Hail Discordia!", "Kallisti!", "Fnord.", "Or not.",
-    "Wibble.", "Pzat!", "P'tang!", "Frink!", 
+    "Wibble.", "Pzat!", "P'tang!", "Frink!",
 #ifdef PRAISE_BOB
     "Slack!", "Praise \"Bob\"!", "Or kill me.",
 #endif /* PRAISE_BOB */
     /* randomness, from the Net and other places. Feel free to add (after
        checking with the relevant authorities, of course). */
-    "Grudnuk demand sustenance!", "Keep the Lasagna flying!", 
-    "Umlaut Zebra über alles!", "You are what you see.",
+    "Grudnuk demand sustenance!", "Keep the Lasagna flying!",
+    "You are what you see.",
     "Or is it?", "This statement is false.",
 #if defined(linux) || defined (__linux__) || defined (__linux)
     "Hail Eris, Hack Linux!",
@@ -247,7 +249,8 @@ void format(char *buf, const char* fmt, struct disc_time dt)
     for(i=0; i<fmtlen; i++) {
 	if((i==tib_start) && (dt.day==-1)) {
 	    /* handle St. Tib's Day */
-	    strcpy(bufptr, _("St. Tib's Day")); bufptr += 13;
+	    strcpy(bufptr, _("St. Tib's Day"));
+	    bufptr += strlen(bufptr);
 	    i=tib_end;
 	} else {
 	    if(fmt[i]=='%') {
@@ -265,9 +268,9 @@ void format(char *buf, const char* fmt, struct disc_time dt)
 		case 'N': if(dt.day!=4&&dt.day!=49) goto eschaton; break;
 		case 'n': *(bufptr++)='\n'; break;
 		case 't': *(bufptr++)='\t'; break;
-		    
+
 		case 'Y': sprintf(snarf, "%d", dt.year); wibble=snarf; break;
-		case '.': wibble=sel(excl, sizeof(excl)/sizeof(excl[0]));
+		case '.': wibble=sel(excl, ARRAY_SIZE(excl));
 		    break;
 #ifdef KILL_BOB
 		case 'X': sprintf(snarf, "%d", 

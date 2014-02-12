@@ -63,6 +63,7 @@
 #include <paths.h>
 
 #include "setpwnam.h"
+#include "c.h"
 
 #define false 0
 #define true 1
@@ -87,9 +88,7 @@ setpwnam (struct passwd *pwd)
     int namelen;
     int buflen = 256;
     int contlen;
-    char *linebuf = malloc(buflen);
-
-    if (!linebuf) return -1;
+    char *linebuf = NULL;
 
     oldumask = umask(0);   /* Create with exact permissions */
 
@@ -125,19 +124,25 @@ setpwnam (struct passwd *pwd)
 
     namelen = strlen(pwd->pw_name);
 
+   linebuf = malloc(buflen);
+   if (!linebuf) goto fail;
+
     /* parse the passwd file */
     found = false;
     /* Do you wonder why I don't use getpwent? Read comments at top of file */
     while (fgets(linebuf, buflen, pwf) != NULL) {
 	contlen = strlen(linebuf);
 	while (linebuf[contlen-1] != '\n' && !feof(pwf)) {
+	    char *tmp;
+
 	    /* Extend input buffer if it failed getting the whole line */
 
 	    /* So now we double the buffer size */
 	    buflen *= 2;
 
-	    linebuf = realloc(linebuf, buflen);
-	    if (linebuf == NULL) goto fail;
+	    tmp = realloc(linebuf, buflen);
+	    if (tmp== NULL) goto fail;
+	    linebuf = tmp;
 
 	    /* And fill the rest of the buffer */
 	    if (fgets(&linebuf[contlen], buflen/2, pwf) == NULL) break;
@@ -173,7 +178,7 @@ setpwnam (struct passwd *pwd)
     /* we don't care if we can't remove the backup file */
     unlink(PASSWD_FILE".OLD");
     /* we don't care if we can't create the backup file */
-    link(PASSWD_FILE, PASSWD_FILE".OLD");
+    ignore_result( link(PASSWD_FILE, PASSWD_FILE".OLD") );
     /* we DO care if we can't rename to the passwd file */
     if(rename(PTMP_FILE, PASSWD_FILE) < 0)
 	goto fail;

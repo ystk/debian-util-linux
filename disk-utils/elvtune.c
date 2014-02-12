@@ -98,11 +98,8 @@ main(int argc, char * argv[]) {
 		case 'v':
 			version(), exit(0);
 
-		case '?':
 		default:
-		case ':':
-			fprintf(stderr, _("parse error\n"));
-			exit(1);
+			usage(), exit(1);
 		}
 	}
 

@@ -22,6 +22,7 @@
 
 #include <endian.h>
 #include "nls.h"
+#include "xalloc.h"
 
 #include "blkdev.h"
 
@@ -42,8 +43,10 @@ static freeblocks freelist[17]; /* 16 partitions can produce 17 vacant slots */
 
 static void
 setfreelist(int i, unsigned int f, unsigned int l) {
-	freelist[i].first = f;
-	freelist[i].last = l;
+	if (i < 17) {
+		freelist[i].first = f;
+		freelist[i].last = l;
+	}
 }
 
 static void
@@ -129,7 +132,6 @@ sgi_get_pcylcount(void) {
 void
 sgi_nolabel() {
 	sgilabel->magic = 0;
-	sgi_label = 0;
 	partitions = 4;
 }
 
@@ -155,7 +157,6 @@ check_sgi_label() {
 
 	if (sgilabel->magic != SGI_LABEL_MAGIC &&
 	    sgilabel->magic != SGI_LABEL_MAGIC_SWAPPED) {
-		sgi_label = 0;
 		other_endian = 0;
 		return 0;
 	}
@@ -170,7 +171,7 @@ check_sgi_label() {
 			_("Detected sgi disklabel with wrong checksum.\n"));
 	}
 	update_units();
-	sgi_label = 1;
+	disklabel = SGI_LABEL;
 	partitions= 16;
 	volumes = 15;
 	return 1;
@@ -322,9 +323,9 @@ sgi_get_bootfile(void) {
 
 void
 sgi_set_bootfile(const char* aFile) {
-	int i = 0;
 
 	if (sgi_check_bootfile(aFile)) {
+		size_t i = 0;
 		while (i < 16) {
 			if ((aFile[i] != '\n')	/* in principle caught again by next line */
 			    &&  (strlen(aFile) > i))
@@ -489,6 +490,9 @@ verify_sgi(int verbose)
 		}
 		start = sgi_get_start_sector(Index[i])
 			+ sgi_get_num_sectors(Index[i]);
+		/* Align free space on cylinder boundary */
+		if (start % cylsize)
+			start += cylsize - (start % cylsize);
 		if (debug > 1) {
 			if (verbose)
 				printf("%2d:%12d\t%12d\t%12d\n", Index[i],
@@ -529,7 +533,7 @@ int
 sgi_change_sysid(int i, int sys)
 {
 	if (sgi_get_num_sectors(i) == 0) /* caught already before, ... */ {
-		printf(_("Sorry You may change the Tag of non-empty partitions.\n"));
+		printf(_("Sorry, only for non-empty partitions you can change the tag.\n"));
 		return 0;
 	}
 	if (((sys != ENTIRE_DISK) && (sys != SGI_VOLHDR))
@@ -774,7 +778,7 @@ create_sgilabel(void)
 	sgilabel->devparam.xylogics_writecont	= SSWAP16(0);
 	memset(&(sgilabel->directory), 0, sizeof(struct volume_directory)*15);
 	memset(&(sgilabel->partitions), 0, sizeof(struct sgi_partition)*16);
-	sgi_label  =  1;
+	disklabel  = SGI_LABEL;
 	partitions = 16;
 	volumes    = 15;
 	sgi_set_entire();
@@ -822,7 +826,7 @@ sgi_set_ncyl(void)
 sgiinfo *
 fill_sgiinfo(void)
 {
-	sgiinfo*info=calloc(1, sizeof(sgiinfo));
+	sgiinfo *info=xcalloc(1, sizeof(sgiinfo));
 	info->magic=SSWAP32(SGI_INFO_MAGIC);
 	info->b1=SSWAP32(-1);
 	info->b2=SSWAP16(-1);

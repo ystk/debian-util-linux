@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003-2007 Red Hat, Inc.
  *
- * This file is part of util-linux-ng.
+ * This file is part of util-linux.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,18 +30,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <error.h>
 #include <getopt.h>
 #include <limits.h>
 #include <sys/utsname.h>
 #include "nls.h"
+#include "c.h"
 
 #define set_pers(pers) ((long)syscall(SYS_personality, pers))
 
-/* Option --4gb has no equivalent short option, use a non-character as a
-   pseudo short option. */
-#define OPT_4GB (CHAR_MAX+1)
+/* Options without equivalent short options */
+enum {
+	OPT_4GB		= CHAR_MAX + 1,
+	OPT_UNAME26
+};
 
 #define turn_on(_flag, _opts) \
 	do { \
@@ -51,6 +52,9 @@
 	} while(0)
 
 
+#if !HAVE_DECL_UNAME26
+# define UNAME26                 0x0020000
+#endif
 #if !HAVE_DECL_ADDR_NO_RANDOMIZE
 # define ADDR_NO_RANDOMIZE       0x0040000
 #endif
@@ -84,7 +88,7 @@
 
 /* Options --3gb and --4gb are for compatibitity with an old Debian setarch
    implementation. */
-struct option longopts[] =
+static const struct option longopts[] =
 {
     { "help",               0, 0, 'h' },
     { "verbose",            0, 0, 'v' },
@@ -99,6 +103,7 @@ struct option longopts[] =
     { "sticky-timeouts",    0, 0, 'T' },
     { "3gb",                0, 0, '3' },
     { "4gb",                0, 0, OPT_4GB },
+    { "uname-2.6",          0, 0, OPT_UNAME26 },
     { NULL,                 0, 0, 0 }
 };
 
@@ -128,6 +133,9 @@ show_help(void)
    " -3, --3gb                limits the used address space to a maximum of 3 GB\n"
    "     --4gb                ignored (for backward compatibility only)\n"));
 
+   printf(_(
+   "     --uname-2.6          turns on UNAME26\n"));
+
   printf(_("\nFor more information see setarch(8).\n"));
   exit(EXIT_SUCCESS);
 }
@@ -149,7 +157,7 @@ int set_arch(const char *pers, unsigned long options)
 {
   struct utsname un;
   int i;
-  unsigned long pers_value, res;
+  unsigned long pers_value;
 
   struct {
     int perval;
@@ -212,11 +220,10 @@ int set_arch(const char *pers, unsigned long options)
 	break;
 
   if(transitions[i].perval < 0)
-    error(EXIT_FAILURE, 0, _("%s: Unrecognized architecture"), pers);
+    errx(EXIT_FAILURE, _("%s: Unrecognized architecture"), pers);
 
   pers_value = transitions[i].perval | options;
-  res = set_pers(pers_value);
-  if(res == -EINVAL)
+  if (set_pers(pers_value) == -EINVAL)
     return 1;
 
   uname(&un);
@@ -228,7 +235,7 @@ int set_arch(const char *pers, unsigned long options)
 	   && strcmp(un.machine, "i586")
 	   && strcmp(un.machine, "i686")
 	   && strcmp(un.machine, "athlon")))
-      error(EXIT_FAILURE, 0, _("%s: Unrecognized architecture"), pers);
+      errx(EXIT_FAILURE, _("%s: Unrecognized architecture"), pers);
   }
 
   return 0;
@@ -262,9 +269,9 @@ int main(int argc, char *argv[])
   #if defined(__sparc64__) || defined(__sparc__)
    if (!strcmp(p, "sparc32bash")) {
        if (set_arch(p, 0L))
-           error(EXIT_FAILURE, errno, _("Failed to set personality to %s"), p);
+           err(EXIT_FAILURE, _("Failed to set personality to %s"), p);
        execl("/bin/bash", NULL);
-       error(EXIT_FAILURE, errno, "/bin/bash");
+       err(EXIT_FAILURE, "/bin/bash");
    }
   #endif
 
@@ -308,6 +315,9 @@ int main(int argc, char *argv[])
 	break;
     case OPT_4GB:          /* just ignore this one */
       break;
+    case OPT_UNAME26:
+	turn_on(UNAME26, options);
+	break;
     }
   }
 
@@ -315,14 +325,14 @@ int main(int argc, char *argv[])
   argv += optind;
 
   if (set_arch(p, options))
-    error(EXIT_FAILURE, errno, _("Failed to set personality to %s"), p);
+    err(EXIT_FAILURE, _("Failed to set personality to %s"), p);
 
   if (!argc) {
     execl("/bin/sh", "-sh", NULL);
-    error(EXIT_FAILURE, errno, "/bin/sh");
+    err(EXIT_FAILURE, "/bin/sh");
   }
 
   execvp(argv[0], argv);
-  error(EXIT_FAILURE, errno, "%s", argv[0]);
+  err(EXIT_FAILURE, "%s", argv[0]);
   return EXIT_FAILURE;
 }

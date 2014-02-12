@@ -110,12 +110,16 @@
 # include <libaudit.h>
 #endif
 
-#include "pathnames.h"
-#include "my_crypt.h"
-#include "login.h"
-#include "xstrncpy.h"
-#include "nls.h"
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
 
+#include "pathnames.h"
+#include "login.h"
+#include "strutils.h"
+#include "nls.h"
+#include "xalloc.h"
+#include "c.h"
 
 #ifdef HAVE_SECURITY_PAM_MISC_H
 #  include <security/pam_appl.h>
@@ -124,7 +128,7 @@
 #  define PAM_FAIL_CHECK if (retcode != PAM_SUCCESS) { \
        fprintf(stderr,"\n%s\n",pam_strerror(pamh, retcode)); \
        syslog(LOG_ERR,"%s",pam_strerror(pamh, retcode)); \
-       pam_end(pamh, retcode); exit(1); \
+       pam_end(pamh, retcode); exit(EXIT_FAILURE); \
    }
 #  define PAM_END { \
 	pam_setcred(pamh, PAM_DELETE_CRED); \
@@ -196,15 +200,13 @@ opentty(const char * tty) {
 	if (fd == -1) {
 		syslog(LOG_ERR, _("FATAL: can't reopen tty: %s"),
 		       strerror(errno));
-		sleep(1);
-		exit(1);
+		sleepexit(EXIT_FAILURE);
 	}
 
 	if (!isatty(fd)) {
 		close(fd);
 		syslog(LOG_ERR, _("FATAL: %s is not a terminal"), tty);
-		sleep(1);
-		exit(1);
+		sleepexit(EXIT_FAILURE);
 	}
 
 	flags = fcntl(fd, F_GETFL);
@@ -235,9 +237,9 @@ check_ttyname(char *ttyn) {
 	    || !S_ISCHR(statbuf.st_mode)
 	    || (statbuf.st_nlink > 1 && strncmp(ttyn, "/dev/", 5))
 	    || (access(ttyn, R_OK | W_OK) != 0)) {
+
 		syslog(LOG_ERR, _("FATAL: bad tty"));
-		sleep(1);
-		exit(1);
+		sleepexit(EXIT_FAILURE);
 	}
 }
 
@@ -340,7 +342,7 @@ logaudit(const char *tty, const char *username, const char *hostname,
 
 	audit_log_acct_message(audit_fd, AUDIT_USER_LOGIN,
 		NULL, "login", username ? username : "(unknown)",
-		pwd ? pwd->pw_uid : -1, hostname, NULL, tty, status);
+		pwd ? pwd->pw_uid : (unsigned int) -1, hostname, NULL, tty, status);
 
 	close(audit_fd);
 }
@@ -384,7 +386,7 @@ main(int argc, char **argv)
     struct group *gr;
     register int ch;
     register char *p;
-    int ask, fflag, hflag, pflag, cnt, errsv;
+    int fflag, hflag, pflag, cnt;
     int quietlog, passwd_req;
     char *domain, *ttyn;
     char tbuf[MAXPATHLEN + 2];
@@ -398,6 +400,7 @@ main(int argc, char **argv)
     struct pam_conv conv = { misc_conv, NULL };
     struct sigaction sa, oldsa_hup, oldsa_term;
 #else
+    int ask;
     char *salt, *pp;
 #endif
 #ifdef LOGIN_CHOWN_VCS
@@ -443,7 +446,7 @@ main(int argc, char **argv)
 	  if (getuid()) {
 	      fprintf(stderr,
 		      _("login: -h for super-user only.\n"));
-	      exit(1);
+	      exit(EXIT_FAILURE);
 	  }
 	  hflag = 1;
 	  if (domain && (p = strchr(optarg, '.')) &&
@@ -486,20 +489,24 @@ main(int argc, char **argv)
 	default:
 	  fprintf(stderr,
 		  _("usage: login [-fp] [username]\n"));
-	  exit(1);
+	  exit(EXIT_FAILURE);
       }
     argc -= optind;
     argv += optind;
+
+#ifndef HAVE_SECURITY_PAM_MISC_H
+    ask = *argv ? 0 : 1;		/* Do we need ask for login name? */
+#endif
+
     if (*argv) {
 	char *p = *argv;
 	username = strdup(p);
-	ask = 0;
+
 	/* wipe name - some people mistype their password here */
 	/* (of course we are too late, but perhaps this helps a little ..) */
 	while(*p)
 	    *p++ = ' ';
-    } else
-        ask = 1;
+    }
 
     for (cnt = getdtablesize(); cnt > 2; cnt--)
       close(cnt);
@@ -540,7 +547,10 @@ main(int argc, char **argv)
 	ttt.c_cflag &= ~HUPCL;
 
 	/* These can fail, e.g. with ttyn on a read-only filesystem */
-	fchown(0, 0, 0);
+	if (fchown(0, 0, 0)) {
+		; /* glibc warn_unused_result */
+	}
+
 	fchmod(0, TTY_MODE);
 
 	/* Kill processes left on this tty */
@@ -573,11 +583,10 @@ main(int argc, char **argv)
 
     retcode = pam_start(hflag?"remote":"login",username, &conv, &pamh);
     if(retcode != PAM_SUCCESS) {
-	fprintf(stderr, _("%s: PAM failure, aborting: %s\n"),
-		"login", pam_strerror(pamh, retcode));
+	warnx(_("PAM failure, aborting: %s"), pam_strerror(pamh, retcode));
 	syslog(LOG_ERR, _("Couldn't initialize PAM: %s"),
 	       pam_strerror(pamh, retcode));
-	exit(99);
+	exit(EXIT_FAILURE);
     }
     /* hostname & tty are either set to NULL or their correct values,
        depending on how much we know */
@@ -661,7 +670,7 @@ main(int argc, char **argv)
 
 	    fprintf(stderr,_("\nLogin incorrect\n"));
 	    pam_end(pamh, retcode);
-	    exit(0);
+	    exit(EXIT_SUCCESS);
 	}
     }
 
@@ -687,18 +696,18 @@ main(int argc, char **argv)
     PAM_FAIL_CHECK;
 
     if (!username || !*username) {
-	    fprintf(stderr, _("\nSession setup problem, abort.\n"));
+	    warnx(_("\nSession setup problem, abort."));
 	    syslog(LOG_ERR, _("NULL user name in %s:%d. Abort."),
 		   __FUNCTION__, __LINE__);
 	    pam_end(pamh, PAM_SYSTEM_ERR);
-	    exit(1);
+	    exit(EXIT_FAILURE);
     }
     if (!(pwd = getpwnam(username))) {
-	    fprintf(stderr, _("\nSession setup problem, abort.\n"));
+	    warnx(_("\nSession setup problem, abort."));
 	    syslog(LOG_ERR, _("Invalid user name \"%s\" in %s:%d. Abort."),
 		   username, __FUNCTION__, __LINE__);
 	    pam_end(pamh, PAM_SYSTEM_ERR);
-	    exit(1);
+	    exit(EXIT_FAILURE);
     }
 
     /*
@@ -714,10 +723,10 @@ main(int argc, char **argv)
     pwd->pw_shell  = strdup(pwd->pw_shell);
     if (!pwd->pw_name || !pwd->pw_passwd || !pwd->pw_gecos ||
 	!pwd->pw_dir || !pwd->pw_shell) {
-	    fprintf(stderr, _("login: Out of memory\n"));
+	    warnx(_("out of memory"));
 	    syslog(LOG_ERR, "Out of memory");
 	    pam_end(pamh, PAM_SYSTEM_ERR);
-	    exit(1);
+	    exit(EXIT_FAILURE);
     }
     username = pwd->pw_name;
 
@@ -728,9 +737,9 @@ main(int argc, char **argv)
      */
     if (initgroups(username, pwd->pw_gid) < 0) {
 	    syslog(LOG_ERR, "initgroups: %m");
-	    fprintf(stderr, _("\nSession setup problem, abort.\n"));
+	    warnx(_("\nSession setup problem, abort."));
 	    pam_end(pamh, PAM_SYSTEM_ERR);
-	    exit(1);
+	    exit(EXIT_FAILURE);
     }
 
     retcode = pam_open_session(pamh, 0);
@@ -760,7 +769,7 @@ main(int argc, char **argv)
 	if (username[0] == '+') {
 	    puts(_("Illegal username"));
 	    badlogin(username);
-	    sleepexit(1);
+	    sleepexit(EXIT_FAILURE);
 	}
 
 	/* (void)strcpy(tbuf, username); why was this here? */
@@ -800,8 +809,7 @@ main(int argc, char **argv)
 	 * refuse the login attempt.
 	 */
 	if (pwd && pwd->pw_uid == 0 && !rootterm(tty_name)) {
-	    fprintf(stderr,
-		    _("%s login refused on this terminal.\n"),
+	    warnx(_("%s login refused on this terminal."),
 		    pwd->pw_name);
 
 	    if (hostname)
@@ -871,7 +879,7 @@ main(int argc, char **argv)
 	/* we allow 10 tries, but after 3 we start backing off */
 	if (++cnt > 3) {
 	    if (cnt >= 10) {
-		sleepexit(1);
+		sleepexit(EXIT_FAILURE);
 	    }
 	    sleep((unsigned int)((cnt - 3) * 5));
 	}
@@ -1013,22 +1021,32 @@ Michael Riepe <michael@stud.uni-hannover.de>
     logaudit(tty_name, username, hostname, pwd, 1);
     dolastlog(quietlog);
 
-    fchown(0, pwd->pw_uid,
-	  (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid);
+    if (fchown(0, pwd->pw_uid,
+	  (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid))
+        warn(_("change terminal owner failed"));
+
     fchmod(0, TTY_MODE);
 
 #ifdef LOGIN_CHOWN_VCS
     /* if tty is one of the VC's then change owner and mode of the
        special /dev/vcs devices as well */
     if (consoletty(0)) {
-	chown(vcsn, pwd->pw_uid, (gr ? gr->gr_gid : pwd->pw_gid));
-	chown(vcsan, pwd->pw_uid, (gr ? gr->gr_gid : pwd->pw_gid));
+
+	if (chown(vcsn, pwd->pw_uid, (gr ? gr->gr_gid : pwd->pw_gid)))
+	    warn(_("change terminal owner failed"));
+	if (chown(vcsan, pwd->pw_uid, (gr ? gr->gr_gid : pwd->pw_gid)))
+	    warn(_("change terminal owner failed"));
+
 	chmod(vcsn, TTY_MODE);
 	chmod(vcsan, TTY_MODE);
     }
 #endif
 
-    setgid(pwd->pw_gid);
+    if (setgid(pwd->pw_gid) < 0 && pwd->pw_gid) {
+	syslog(LOG_ALERT, _("setgid() failed"));
+	exit(EXIT_FAILURE);
+    }
+
 
     if (*pwd->pw_shell == '\0')
       pwd->pw_shell = _PATH_BSHELL;
@@ -1170,11 +1188,10 @@ Michael Riepe <michael@stud.uni-hannover.de>
 
     child_pid = fork();
     if (child_pid < 0) {
-       int errsv = errno;
        /* error in fork() */
-       fprintf(stderr, _("login: failure forking: %s"), strerror(errsv));
+       warn(_("failure forking"));
        PAM_END;
-       exit(0);
+       exit(EXIT_FAILURE);
     }
 
     if (child_pid) {
@@ -1191,7 +1208,7 @@ Michael Riepe <michael@stud.uni-hannover.de>
 	       ;
        openlog("login", LOG_ODELAY, LOG_AUTHPRIV);
        PAM_END;
-       exit(0);
+       exit(EXIT_SUCCESS);
     }
 
     /* child */
@@ -1200,7 +1217,7 @@ Michael Riepe <michael@stud.uni-hannover.de>
     sigaction(SIGHUP, &oldsa_hup, NULL);
     sigaction(SIGTERM, &oldsa_term, NULL);
     if(got_sig)
-	    exit(1);
+	    exit(EXIT_FAILURE);
 
     /*
      * Problem: if the user's shell is a shell like ash that doesnt do
@@ -1226,26 +1243,21 @@ Michael Riepe <michael@stud.uni-hannover.de>
     /* discard permissions last so can't get killed and drop core */
     if(setuid(pwd->pw_uid) < 0 && pwd->pw_uid) {
 	syslog(LOG_ALERT, _("setuid() failed"));
-	exit(1);
+	exit(EXIT_FAILURE);
     }
 
     /* wait until here to change directory! */
     if (chdir(pwd->pw_dir) < 0) {
-	printf(_("No directory %s!\n"), pwd->pw_dir);
+	warn(_("%s: change directory failed"), pwd->pw_dir);
 	if (chdir("/"))
-	  exit(0);
+	  exit(EXIT_FAILURE);
 	pwd->pw_dir = "/";
 	printf(_("Logging in with home = \"/\".\n"));
     }
 
     /* if the shell field has a space: treat it like a shell script */
     if (strchr(pwd->pw_shell, ' ')) {
-	buff = malloc(strlen(pwd->pw_shell) + 6);
-
-	if (!buff) {
-	    fprintf(stderr, _("login: no memory for shell script.\n"));
-	    exit(0);
-	}
+	buff = xmalloc(strlen(pwd->pw_shell) + 6);
 
 	strcpy(buff, "exec ");
 	strcat(buff, pwd->pw_shell);
@@ -1267,15 +1279,12 @@ Michael Riepe <michael@stud.uni-hannover.de>
 
     execvp(childArgv[0], childArgv + 1);
 
-    errsv = errno;
-
     if (!strcmp(childArgv[0], "/bin/sh"))
-	fprintf(stderr, _("login: couldn't exec shell script: %s.\n"),
-		strerror(errsv));
+	warn(_("couldn't exec shell script"));
     else
-	fprintf(stderr, _("login: no shell: %s.\n"), strerror(errsv));
+	warn(_("no shell"));
 
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 #ifndef HAVE_SECURITY_PAM_MISC_H
@@ -1292,22 +1301,20 @@ getloginname(void) {
 	for (p = nbuf; (ch = getchar()) != '\n'; ) {
 	    if (ch == EOF) {
 		badlogin("EOF");
-		exit(0);
+		exit(EXIT_FAILURE);
 	    }
 	    if (p < nbuf + UT_NAMESIZE)
 	      *p++ = ch;
 
 	    cnt++;
 	    if (cnt > UT_NAMESIZE + 20) {
-		fprintf(stderr, _("login name much too long.\n"));
 		badlogin(_("NAME too long"));
-		exit(0);
+		errx(EXIT_FAILURE, _("login name much too long."));
 	    }
 	}
 	if (p > nbuf) {
 	  if (nbuf[0] == '-')
-	    fprintf(stderr,
-		    _("login names may not start with '-'.\n"));
+	     warnx(_("login names may not start with '-'."));
 	  else {
 	      *p = '\0';
 	      username = nbuf;
@@ -1317,9 +1324,8 @@ getloginname(void) {
 
 	cnt2++;
 	if (cnt2 > 50) {
-	    fprintf(stderr, _("too many bare linefeeds.\n"));
 	    badlogin(_("EXCESSIVE linefeeds"));
-	    exit(0);
+	    errx(EXIT_FAILURE, _("too many bare linefeeds."));
 	}
     }
 }
@@ -1336,21 +1342,22 @@ getloginname(void) {
  */
 
 static void
-timedout2(int sig) {
+timedout2(int sig __attribute__((__unused__))) {
 	struct termios ti;
 
 	/* reset echo */
 	tcgetattr(0, &ti);
 	ti.c_lflag |= ECHO;
 	tcsetattr(0, TCSANOW, &ti);
-	exit(0);			/* %% */
+	exit(EXIT_SUCCESS);			/* %% */
 }
 
 static void
-timedout(int sig) {
+timedout(int sig __attribute__((__unused__))) {
 	signal(SIGALRM, timedout2);
 	alarm(10);
-	fprintf(stderr, _("Login timed out after %d seconds\n"), timeout);
+	/* TRANSLATORS: The standard value for %d is 60. */
+	warnx(_("timed out after %d seconds"), timeout);
 	signal(SIGALRM, SIG_IGN);
 	alarm(0);
 	timedout2(0);
@@ -1380,10 +1387,10 @@ rootterm(char * ttyn)
 		return 1;
 	    } else
 	      continue;
-  	} else {
+	} else {
 	    close(fd);
 	    return 0;
-  	}
+	}
     }
 }
 #endif /* !HAVE_SECURITY_PAM_MISC_H */
@@ -1400,14 +1407,17 @@ motd(void) {
       return;
     oldint = signal(SIGINT, sigint);
     if (setjmp(motdinterrupt) == 0)
-      while ((nchars = read(fd, tbuf, sizeof(tbuf))) > 0)
-	write(fileno(stdout), tbuf, nchars);
+      while ((nchars = read(fd, tbuf, sizeof(tbuf))) > 0) {
+	if (write(fileno(stdout), tbuf, nchars)) {
+		;	/* glibc warn_unused_result */
+	}
+      }
     signal(SIGINT, oldint);
     close(fd);
 }
 
 void
-sigint(int sig) {
+sigint(int sig  __attribute__((__unused__))) {
     longjmp(motdinterrupt, 1);
 }
 
@@ -1418,10 +1428,13 @@ checknologin(void) {
     char tbuf[8192];
 
     if ((fd = open(_PATH_NOLOGIN, O_RDONLY, 0)) >= 0) {
-	while ((nchars = read(fd, tbuf, sizeof(tbuf))) > 0)
-	  write(fileno(stdout), tbuf, nchars);
+	while ((nchars = read(fd, tbuf, sizeof(tbuf))) > 0) {
+	  if (write(fileno(stdout), tbuf, nchars)) {
+		;	/* glibc warn_unused_result */
+	  }
+	}
 	close(fd);
-	sleepexit(0);
+	sleepexit(EXIT_SUCCESS);
     }
 }
 #endif
@@ -1462,7 +1475,8 @@ dolastlog(int quiet) {
 	if (hostname)
 	    xstrncpy(ll.ll_host, hostname, sizeof(ll.ll_host));
 
-	write(fd, (char *)&ll, sizeof(ll));
+	if (write(fd, (char *)&ll, sizeof(ll)) < 0)
+	    warn(_("write lastlog failed"));
 	close(fd);
     }
 }

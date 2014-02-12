@@ -13,7 +13,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <stdint.h>
-#include <err.h>
+#include <ctype.h>
 
 #include "bitops.h"
 #include "blkdev.h"
@@ -22,11 +22,19 @@
 #include "fsprobe.h"
 #include "pathnames.h"
 #include "swapheader.h"
+#include "mangle.h"
+#include "canonicalize.h"
+#include "xalloc.h"
+#include "c.h"
 
 #define PATH_MKSWAP	"/sbin/mkswap"
 
 #ifdef HAVE_SYS_SWAP_H
 # include <sys/swap.h>
+#endif
+
+#ifndef SWAP_FLAG_DISCARD
+# define SWAP_FLAG_DISCARD	0x10000 /* discard swap cluster after use */
 #endif
 
 #ifndef SWAPON_HAS_TWO_ARGS
@@ -51,19 +59,21 @@ enum {
 #define SWAP_SIGNATURE		"SWAPSPACE2"
 #define SWAP_SIGNATURE_SZ	(sizeof(SWAP_SIGNATURE) - 1)
 
-int all;
-int priority = -1;	/* non-prioritized swap by default */
+static int all;
+static int priority = -1;	/* non-prioritized swap by default */
+static int discard;
 
 /* If true, don't complain if the device/file doesn't exist */
-int ifexists;
-int fixpgsz;
+static int ifexists;
+static int fixpgsz;
 
-int verbose;
-char *progname;
+static int verbose;
+static char *progname;
 
-static struct option longswaponopts[] = {
+static const struct option longswaponopts[] = {
 		/* swapon only */
 	{ "priority", required_argument, 0, 'p' },
+	{ "discard", 0, 0, 'd' },
 	{ "ifexists", 0, 0, 'e' },
 	{ "summary", 0, 0, 's' },
 	{ "fixpgsz", 0, 0, 'f' },
@@ -75,41 +85,52 @@ static struct option longswaponopts[] = {
 	{ NULL, 0, 0, 0 }
 };
 
-static struct option *longswapoffopts = &longswaponopts[4];
+static const struct option *longswapoffopts = &longswaponopts[4];
 
 static int cannot_find(const char *special);
 
 #define PRINT_USAGE_SPECIAL(_fp) \
-		fprintf(_fp, _( \
-	"The <special> parameter:\n" \
-	" {-L label | LABEL=label}             LABEL of device to be used\n" \
-	" {-U uuid  | UUID=uuid}               UUID of device to be used\n" \
-	" <device>                             name of device to be used\n" \
-	" <file>                               name of file to be used\n\n"))
+	fputs(_("\nThe <spec> parameter:\n" \
+		" -L <label>             LABEL of device to be used\n" \
+		" -U <uuid>              UUID of device to be used\n" \
+		" LABEL=<label>          LABEL of device to be used\n" \
+		" UUID=<uuid>            UUID of device to be used\n" \
+		" <device>               name of device to be used\n" \
+		" <file>                 name of file to be used\n\n"), _fp)
 
 static void
-swapon_usage(FILE *fp, int n) {
-	fprintf(fp, _("\nUsage:\n"
-	" %1$s -a [-e] [-v] [-f]             enable all swaps from /etc/fstab\n"
-	" %1$s [-p priority] [-v] [-f] <special>  enable given swap\n"
-	" %1$s -s                            display swap usage summary\n"
-	" %1$s -h                            display help\n"
-	" %1$s -V                            display version\n\n"), progname);
+swapon_usage(FILE *out, int n) {
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out, _(" %s [options] [<spec>]\n"), progname);
 
-	PRINT_USAGE_SPECIAL(fp);
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -a, --all              enable all swaps from /etc/fstab\n"
+		" -d, --discard          discard freed pages before they are reused\n"
+		" -e, --ifexists         silently skip devices that do not exis\n"
+		" -f, --fixpgsz          reinitialize the swap space if necessary\n"
+		" -h, --help             display help and exit\n"
+		" -p, --priority <prio>  specify the priority of the swap device.\n"
+		" -s, --summary          display summary about used swap devices and exit\n"
+		" -v, --verbose          verbose mode\n"
+		" -V, --version          display version and exit\n"), out);
+
+	PRINT_USAGE_SPECIAL(out);
 
 	exit(n);
 }
 
 static void
-swapoff_usage(FILE *fp, int n) {
-	fprintf(fp, _("\nUsage:\n"
-	" %1$s -a [-v]                      disable all swaps\n"
-	" %1$s [-v] <special>               disable given swap\n"
-	" %1$s -h                           display help\n"
-	" %1$s -V                           display version\n\n"), progname);
+swapoff_usage(FILE *out, int n) {
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out, _(" %s [options] [<spec>]\n"), progname);
 
-	PRINT_USAGE_SPECIAL(fp);
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -a, --all              disable all swaps from /proc/swaps\n"
+		" -h, --help             display help and exit\n"
+		" -v, --verbose          verbose mode\n"
+		" -V, --version          display version and exit\n"), out);
+
+	PRINT_USAGE_SPECIAL(out);
 
 	exit(n);
 }
@@ -119,9 +140,6 @@ swapoff_usage(FILE *fp, int n) {
  */
 static int numSwaps;
 static char **swapFiles;	/* array of swap file and partition names */
-
-#define DELETED_SUFFIX		"\\040(deleted)"
-#define DELETED_SUFFIX_SZ	(sizeof(DELETED_SUFFIX) - 1)
 
 static void
 read_proc_swaps(void) {
@@ -162,9 +180,9 @@ read_proc_swaps(void) {
 		 * in /proc/swaps, we have to remove this junk.
 		 */
 		sz = strlen(line);
-		if (sz > DELETED_SUFFIX_SZ) {
-		       p = line + (sz - DELETED_SUFFIX_SZ);
-		       if (strcmp(p, DELETED_SUFFIX) == 0)
+		if (sz > PATH_DELETED_SUFFIX_SZ) {
+		       p = line + (sz - PATH_DELETED_SUFFIX_SZ);
+		       if (strcmp(p, PATH_DELETED_SUFFIX) == 0)
 			       *p = '\0';
 		}
 
@@ -173,11 +191,16 @@ read_proc_swaps(void) {
 			break;
 		swapFiles = q;
 
-		swapFiles[numSwaps++] = strdup(line);
+		if ((p = unmangle(line, NULL)) == NULL)
+			break;
+
+		swapFiles[numSwaps++] = canonicalize_path(p);
+		free(p);
 	}
 	fclose(swaps);
 }
 
+/* note that swapFiles are always canonicalized */
 static int
 is_in_proc_swaps(const char *fname) {
 	int i;
@@ -191,19 +214,36 @@ is_in_proc_swaps(const char *fname) {
 static int
 display_summary(void)
 {
-       FILE *swaps;
-       char line[1024] ;
+	FILE *swaps;
+	char line[1024] ;
 
-       if ((swaps = fopen(_PATH_PROC_SWAPS, "r")) == NULL) {
-               warn(_("%s: open failed"), _PATH_PROC_SWAPS);
-               return -1;
-       }
+	if ((swaps = fopen(_PATH_PROC_SWAPS, "r")) == NULL) {
+		warn(_("%s: open failed"), _PATH_PROC_SWAPS);
+		return -1;
+	}
 
-       while (fgets(line, sizeof(line), swaps))
-               printf("%s", line);
+	while (fgets(line, sizeof(line), swaps)) {
+		char *p, *dev, *cn;
+		if (!strncmp(line, "Filename\t", 9)) {
+			printf("%s", line);
+			continue;
+		}
+		for (p = line; *p && *p != ' '; p++);
+		*p = '\0';
+		for (++p; *p && isblank((unsigned int) *p); p++);
 
-       fclose(swaps);
-       return 0 ;
+		dev = unmangle(line, NULL);
+		if (!dev)
+			continue;
+		cn = canonicalize_path(dev);
+		if (cn)
+			printf("%-39s %s", cn, p);
+		free(dev);
+		free(cn);
+	}
+
+	fclose(swaps);
+	return 0 ;
 }
 
 /* calls mkswap */
@@ -294,7 +334,8 @@ swap_detect_signature(const char *buf, int *sig)
 	else if (memcmp(buf, "S1SUSPEND", 9) == 0 ||
 		 memcmp(buf, "S2SUSPEND", 9) == 0 ||
 		 memcmp(buf, "ULSUSPEND", 9) == 0 ||
-		 memcmp(buf, "\xed\xc3\x02\xe9\x98\x56\xe5\x0c", 8) == 0)
+		 memcmp(buf, "\xed\xc3\x02\xe9\x98\x56\xe5\x0c", 8) == 0 ||
+		 memcmp(buf, "LINHIB0001", 10) == 0)
 		*sig = SIG_SWSUSPEND;
 	else
 		return 0;
@@ -312,9 +353,7 @@ swap_get_header(int fd, int *sig, unsigned int *pagesize)
 	*pagesize = 0;
 	*sig = 0;
 
-	buf = malloc(MAX_PAGESIZE);
-	if (!buf)
-		return NULL;
+	buf = xmalloc(MAX_PAGESIZE);
 
 	datasz = read(fd, buf, MAX_PAGESIZE);
 	if (datasz == (ssize_t) -1)
@@ -327,7 +366,7 @@ swap_get_header(int fd, int *sig, unsigned int *pagesize)
 			continue;
 		/* the smallest swap area is PAGE_SIZE*10, it means
 		 * 40k, that's less than MAX_PAGESIZE */
-		if (datasz < (page - SWAP_SIGNATURE_SZ))
+		if (datasz < 0 || (size_t) datasz < (page - SWAP_SIGNATURE_SZ))
 			break;
 		if (swap_detect_signature(buf + page - SWAP_SIGNATURE_SZ, sig)) {
 			*pagesize = page;
@@ -394,6 +433,10 @@ swapon_checks(const char *special)
 			warnx(_("%s: insecure permissions %04o, %04o suggested."),
 				special, st.st_mode & 07777,
 				~permMask & 0666);
+
+		if (S_ISREG(st.st_mode) && st.st_uid != 0)
+			warnx(_("%s: insecure file owner %d, 0 (root) suggested."),
+				special, st.st_uid);
 	}
 
 	/* test for holes by LBT */
@@ -426,8 +469,10 @@ swapon_checks(const char *special)
 	if (sig == SIG_SWAPSPACE && pagesize) {
 		unsigned long long swapsize =
 				swap_get_size(hdr, special, pagesize);
+		int syspg = getpagesize();
+
 		if (verbose)
-			warnx("%s: pagesize=%d, swapsize=%llu, devsize=%llu",
+			warnx(_("%s: pagesize=%d, swapsize=%llu, devsize=%llu"),
 				special, pagesize, swapsize, devsize);
 
 		if (swapsize > devsize) {
@@ -435,7 +480,7 @@ swapon_checks(const char *special)
 				warnx(_("%s: last_page 0x%08llx is larger"
 					" than actual size of swapspace"),
 					special, swapsize);
-		} else if (getpagesize() != pagesize) {
+		} else if (syspg < 0 || (unsigned) syspg != pagesize) {
 			if (fixpgsz) {
 				warnx(_("%s: swap format pagesize does not match."),
 					special);
@@ -469,7 +514,7 @@ err:
 }
 
 static int
-do_swapon(const char *orig_special, int prio, int canonic) {
+do_swapon(const char *orig_special, int prio, int fl_discard, int canonic) {
 	int status;
 	const char *special = orig_special;
 	int flags = 0;
@@ -495,6 +540,9 @@ do_swapon(const char *orig_special, int prio, int canonic) {
 			   << SWAP_FLAG_PRIO_SHIFT);
 	}
 #endif
+	if (fl_discard)
+		flags |= SWAP_FLAG_DISCARD;
+
 	status = swapon(special, flags);
 	if (status < 0)
 		warn(_("%s: swapon failed"), orig_special);
@@ -509,15 +557,17 @@ cannot_find(const char *special) {
 }
 
 static int
-swapon_by_label(const char *label, int prio) {
+swapon_by_label(const char *label, int prio, int dsc) {
 	const char *special = fsprobe_get_devname_by_label(label);
-	return special ? do_swapon(special, prio, CANONIC) : cannot_find(label);
+	return special ? do_swapon(special, prio, dsc, CANONIC) :
+			 cannot_find(label);
 }
 
 static int
-swapon_by_uuid(const char *uuid, int prio) {
+swapon_by_uuid(const char *uuid, int prio, int dsc) {
 	const char *special = fsprobe_get_devname_by_uuid(uuid);
-	return special ? do_swapon(special, prio, CANONIC) : cannot_find(uuid);
+	return special ? do_swapon(special, prio, dsc, CANONIC) :
+			 cannot_find(uuid);
 }
 
 static int
@@ -571,8 +621,8 @@ swapon_all(void) {
 
 	while ((fstab = getmntent(fp)) != NULL) {
 		const char *special;
-		int skip = 0;
-		int pri = priority;
+		int skip = 0, nofail = ifexists;
+		int pri = priority, dsc = discard;
 		char *opt, *opts;
 
 		if (!streq(fstab->mnt_type, MNTTYPE_SWAP))
@@ -584,8 +634,12 @@ swapon_all(void) {
 		     opt = strtok(NULL, ",")) {
 			if (strncmp(opt, "pri=", 4) == 0)
 				pri = atoi(opt+4);
+			if (strcmp(opt, "discard") == 0)
+				dsc = 1;
 			if (strcmp(opt, "noauto") == 0)
 				skip = 1;
+			if (strcmp(opt, "nofail") == 0)
+				nofail = 1;
 		}
 		free(opts);
 
@@ -594,14 +648,14 @@ swapon_all(void) {
 
 		special = fsprobe_get_devname_by_spec(fstab->mnt_fsname);
 		if (!special) {
-			if (!ifexists)
+			if (!nofail)
 				status |= cannot_find(fstab->mnt_fsname);
 			continue;
 		}
 
 		if (!is_in_proc_swaps(special) &&
-		    (!ifexists || !access(special, R_OK)))
-			status |= do_swapon(special, pri, CANONIC);
+		    (!nofail || !access(special, R_OK)))
+			status |= do_swapon(special, pri, dsc, CANONIC);
 
 		free((void *) special);
 	}
@@ -616,16 +670,12 @@ static const char **ulist = NULL;
 static int ulct = 0;
 
 static void addl(const char *label) {
-	llist = (const char **) realloc(llist, (++llct) * sizeof(char *));
-	if (!llist)
-		exit(EXIT_FAILURE);
+	llist = (const char **) xrealloc(llist, (++llct) * sizeof(char *));
 	llist[llct-1] = label;
 }
 
 static void addu(const char *uuid) {
-	ulist = (const char **) realloc(ulist, (++ulct) * sizeof(char *));
-	if (!ulist)
-		exit(EXIT_FAILURE);
+	ulist = (const char **) xrealloc(ulist, (++ulct) * sizeof(char *));
 	ulist[ulct-1] = uuid;
 }
 
@@ -634,7 +684,7 @@ main_swapon(int argc, char *argv[]) {
 	int status = 0;
 	int c, i;
 
-	while ((c = getopt_long(argc, argv, "ahefp:svVL:U:",
+	while ((c = getopt_long(argc, argv, "ahdefp:svVL:U:",
 				longswaponopts, NULL)) != -1) {
 		switch (c) {
 		case 'a':		/* all */
@@ -652,6 +702,9 @@ main_swapon(int argc, char *argv[]) {
 		case 'U':
 			addu(optarg);
 			break;
+		case 'd':
+			discard = 1;
+			break;
 		case 'e':               /* ifexists */
 		        ifexists = 1;
 			break;
@@ -665,8 +718,8 @@ main_swapon(int argc, char *argv[]) {
 			++verbose;
 			break;
 		case 'V':		/* version */
-			printf("%s: (%s)\n", progname, PACKAGE_STRING);
-			exit(0);
+			printf(_("%s (%s)\n"), progname, PACKAGE_STRING);
+			exit(EXIT_SUCCESS);
 		case 0:
 			break;
 		case '?':
@@ -686,13 +739,13 @@ main_swapon(int argc, char *argv[]) {
 		status |= swapon_all();
 
 	for (i = 0; i < llct; i++)
-		status |= swapon_by_label(llist[i], priority);
+		status |= swapon_by_label(llist[i], priority, discard);
 
 	for (i = 0; i < ulct; i++)
-		status |= swapon_by_uuid(ulist[i], priority);
+		status |= swapon_by_uuid(ulist[i], priority, discard);
 
 	while (*argv != NULL)
-		status |= do_swapon(*argv++, priority, !CANONIC);
+		status |= do_swapon(*argv++, priority, discard, !CANONIC);
 
 	return status;
 }
@@ -717,8 +770,8 @@ main_swapoff(int argc, char *argv[]) {
 			++verbose;
 			break;
 		case 'V':		/* version */
-			printf("%s (%s)\n", progname, PACKAGE_STRING);
-			exit(0);
+			printf(_("%s (%s)\n"), progname, PACKAGE_STRING);
+			exit(EXIT_SUCCESS);
 		case 'L':
 			addl(optarg);
 			break;

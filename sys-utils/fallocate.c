@@ -30,75 +30,49 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <err.h>
 #include <limits.h>
 
 #ifndef HAVE_FALLOCATE
 # include <sys/syscall.h>
 #endif
 
-#include <linux/falloc.h>	/* for FALLOC_FL_* flags */
+#ifdef HAVE_LINUX_FALLOC_H
+# include <linux/falloc.h>	/* for FALLOC_FL_* flags */
+#else
+# define FALLOC_FL_KEEP_SIZE 1
+#endif
 
 #include "nls.h"
+#include "strutils.h"
+#include "c.h"
 
 
 static void __attribute__((__noreturn__)) usage(FILE *out)
 {
-	fprintf(out, _("Usage: %s [options] <filename>\n\nOptions:\n"),
-			program_invocation_short_name);
 
-	fprintf(out, _(
-		" -h, --help          this help\n"
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out,
+	      _(" %s [options] <filename>\n"), program_invocation_short_name);
+
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -h, --help          this help\n"
 		" -n, --keep-size     don't modify the length of the file\n"
 		" -o, --offset <num>  offset of the allocation, in bytes\n"
-		" -l, --length <num>  length of the allocation, in bytes\n"));
+		" -l, --length <num>  length of the allocation, in bytes\n"), out);
 
 	fprintf(out, _("\nFor more information see fallocate(1).\n"));
 
 	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
-#define EXABYTES(x)     ((x) << 60)
-#define PETABYTES(x)    ((x) << 50)
-#define TERABYTES(x)    ((x) << 40)
-#define GIGABYTES(x)    ((x) << 30)
-#define MEGABYTES(x)    ((x) << 20)
-#define KILOBYTES(x)    ((x) << 10)
-
 static loff_t cvtnum(char *s)
 {
-	loff_t	i;
-	char	*sp;
+	uintmax_t x;
 
-	errno = 0;
-	i = strtoll(s, &sp, 0);
-
-	if ((errno == ERANGE && (i == LLONG_MAX || i == LLONG_MIN)) ||
-	    (errno != 0 && i == 0))
-		return -1LL;
-	if (i == 0 && sp == s)
-		return -1LL;
-	if (*sp == '\0')
-		return i;
-	if (sp[1] != '\0')
+	if (strtosize(s, &x))
 		return -1LL;
 
-	switch (tolower(*sp)) {
-	case 'k':
-		return KILOBYTES(i);
-	case 'm':
-		return MEGABYTES(i);
-	case 'g':
-		return GIGABYTES(i);
-	case 't':
-		return TERABYTES(i);
-	case 'p':
-		return PETABYTES(i);
-	case 'e':
-		return EXABYTES(i);
-	}
-
-	return -1LL;
+	return x;
 }
 
 int main(int argc, char **argv)
@@ -111,11 +85,11 @@ int main(int argc, char **argv)
 	loff_t	length = -2LL;
 	loff_t	offset = 0;
 
-	struct option longopts[] = {
+	static const struct option longopts[] = {
 	    { "help",      0, 0, 'h' },
 	    { "keep-size", 0, 0, 'n' },
 	    { "offset",    1, 0, 'o' },
-	    { "lenght",    1, 0, 'l' },
+	    { "length",    1, 0, 'l' },
 	    { NULL,        0, 0, 0 }
 	};
 
@@ -153,6 +127,11 @@ int main(int argc, char **argv)
 		errx(EXIT_FAILURE, _("no filename specified."));
 
 	fname = argv[optind++];
+
+	if (optind != argc) {
+		warnx(_("unexpected number of arguments"));
+		usage(stderr);
+	}
 
 	fd = open(fname, O_WRONLY|O_CREAT, 0644);
 	if (fd < 0)

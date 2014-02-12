@@ -44,6 +44,8 @@ struct fs_info {
 	int   freq;
 	int   passno;
 	int   flags;
+	dev_t disk;
+	int   stacked;
 	struct fs_info *next;
 };
 
@@ -56,12 +58,12 @@ struct fs_info {
 struct fsck_instance {
 	int	pid;
 	int	flags;
+	int	lock;		/* flock()ed whole disk file descriptor or -1 */
 	int	exit_status;
 	time_t	start_time;
 	char *	prog;
 	char *	type;
-	char *	device;
-	char *	base_device;
+	struct fs_info *fs;
 	struct fsck_instance *next;
 };
 

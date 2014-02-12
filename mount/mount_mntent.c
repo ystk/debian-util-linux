@@ -9,42 +9,11 @@
 #include <string.h>		/* for index */
 #include <ctype.h>		/* for isdigit */
 #include <sys/stat.h>		/* for umask */
+
 #include "mount_mntent.h"
 #include "sundries.h"		/* for xmalloc */
 #include "nls.h"
-
-/* Unfortunately the classical Unix /etc/mtab and /etc/fstab
-   do not handle directory names containing spaces.
-   Here we mangle them, replacing a space by \040.
-   What do other Unices do? */
-
-static unsigned char need_escaping[] = { ' ', '\t', '\n', '\\' };
-
-static char *
-mangle(const char *s) {
-	char *ss, *sp;
-	int n;
-
-	n = strlen(s);
-	ss = sp = xmalloc(4*n+1);
-	while(1) {
-		for (n = 0; n < sizeof(need_escaping); n++) {
-			if (*s == need_escaping[n]) {
-				*sp++ = '\\';
-				*sp++ = '0' + ((*s & 0300) >> 6);
-				*sp++ = '0' + ((*s & 070) >> 3);
-				*sp++ = '0' + (*s & 07);
-				goto next;
-			}
-		}
-		*sp++ = *s;
-		if (*s == 0)
-			break;
-	next:
-		s++;
-	}
-	return ss;
-}
+#include "mangle.h"
 
 static int
 is_space_or_tab (char c) {
@@ -56,33 +25,6 @@ skip_spaces(char *s) {
 	while (is_space_or_tab(*s))
 		s++;
 	return s;
-}
-
-static char *
-skip_nonspaces(char *s) {
-	while (*s && !is_space_or_tab(*s))
-		s++;
-	return s;
-}
-
-#define isoctal(a) (((a) & ~7) == '0')
-
-/* returns malloced pointer - no more strdup required */
-static char *
-unmangle(char *s) {
-	char *ret, *ss, *sp;
-
-	ss = skip_nonspaces(s);
-	ret = sp = xmalloc(ss-s+1);
-	while(s != ss) {
-		if (*s == '\\' && isoctal(s[1]) && isoctal(s[2]) && isoctal(s[3])) {
-			*sp++ = 64*(s[1] & 7) + 8*(s[2] & 7) + (s[3] & 7);
-			s += 4;
-		} else
-			*sp++ = *s++;
-	}
-	*sp = 0;
-	return ret;
 }
 
 /*
@@ -128,7 +70,7 @@ my_addmntent (mntFILE *mfp, struct my_mntent *mnt) {
 	m1 = mangle(mnt->mnt_fsname);
 	m2 = mangle(mnt->mnt_dir);
 	m3 = mangle(mnt->mnt_type);
-	m4 = mangle(mnt->mnt_opts);
+	m4 = mnt->mnt_opts ? mangle(mnt->mnt_opts) : "rw";
 
 	res = fprintf (mfp->mntent_fp, "%s %s %s %s %d %d\n",
 		       m1, m2, m3, m4, mnt->mnt_freq, mnt->mnt_passno);
@@ -136,7 +78,8 @@ my_addmntent (mntFILE *mfp, struct my_mntent *mnt) {
 	free(m1);
 	free(m2);
 	free(m3);
-	free(m4);
+	if (mnt->mnt_opts)
+		free(m4);
 	return (res < 0) ? 1 : 0;
 }
 
@@ -177,18 +120,17 @@ my_getmntent (mntFILE *mfp) {
 		s = skip_spaces(buf);
 	} while (*s == '\0' || *s == '#');
 
-	me.mnt_fsname = unmangle(s);
-	s = skip_nonspaces(s);
+	me.mnt_fsname = unmangle(s, &s);
 	s = skip_spaces(s);
-	me.mnt_dir = unmangle(s);
-	s = skip_nonspaces(s);
+	me.mnt_dir = unmangle(s, &s);
 	s = skip_spaces(s);
-	me.mnt_type = unmangle(s);
-	s = skip_nonspaces(s);
+	me.mnt_type = unmangle(s, &s);
 	s = skip_spaces(s);
-	me.mnt_opts = unmangle(s);
-	s = skip_nonspaces(s);
+	me.mnt_opts = unmangle(s, &s);
 	s = skip_spaces(s);
+
+	if (!me.mnt_fsname || !me.mnt_dir || !me.mnt_type)
+		goto err;
 
 	if (isdigit(*s)) {
 		me.mnt_freq = atoi(s);

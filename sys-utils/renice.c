@@ -45,19 +45,30 @@
 #include <string.h>
 #include <errno.h>
 #include "nls.h"
+#include "c.h"
 
-int donice(int,int,int);
+static int donice(int,int,int);
 
-void usage(int rc)
+static void __attribute__((__noreturn__)) usage(FILE *out)
 {
-	printf( _("\nUsage:\n"
-		" renice [-n] priority [-p|--pid] pid  [... pid]\n"
-		" renice [-n] priority  -g|--pgrp pgrp [... pgrp]\n"
-		" renice [-n] priority  -u|--user user [... user]\n"
-		" renice -h | --help\n"
-		" renice -v | --version\n\n"));
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out,
+	      _(" %1$s [-n] <priority> [-p] <pid> [<pid>  ...]\n"
+		" %1$s [-n] <priority>  -g <pgrp> [<pgrp> ...]\n"
+		" %1$s [-n] <priority>  -u <user> [<user> ...]\n"),
+		program_invocation_short_name);
 
-	exit(rc);
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -g, --pgrp <id>        interpret as process group ID\n"
+		" -h, --help             print help\n"
+		" -n, --priority <num>   set the nice increment value\n"
+		" -p, --pid <id>         force to be interpreted as process ID\n"
+		" -u, --user <name|id>   interpret as username or user ID\n"
+		" -v, --version          print version\n"), out);
+
+	fputs(_("\nFor more information see renice(1).\n"), out);
+
+	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 /*
@@ -82,7 +93,7 @@ main(int argc, char **argv)
 	if (argc == 1) {
 		if (strcmp(*argv, "-h") == 0 ||
 		    strcmp(*argv, "--help") == 0)
-			usage(EXIT_SUCCESS);
+			usage(stdout);
 
 		if (strcmp(*argv, "-v") == 0 ||
 		    strcmp(*argv, "--version") == 0) {
@@ -92,7 +103,7 @@ main(int argc, char **argv)
 	}
 
 	if (argc < 2)
-		usage(EXIT_FAILURE);
+		usage(stderr);
 
 	if (strcmp(*argv, "-n") == 0 || strcmp(*argv, "--priority") == 0) {
 		argc--;
@@ -101,7 +112,7 @@ main(int argc, char **argv)
 
 	prio = strtol(*argv, &endptr, 10);
 	if (*endptr)
-		usage(EXIT_FAILURE);
+		usage(stderr);
 
 	argc--;
 	argv++;
@@ -123,16 +134,14 @@ main(int argc, char **argv)
 			register struct passwd *pwd = getpwnam(*argv);
 
 			if (pwd == NULL) {
-				fprintf(stderr, _("renice: %s: unknown user\n"),
-					*argv);
+				warnx(_("unknown user %s"), *argv);
 				continue;
 			}
 			who = pwd->pw_uid;
 		} else {
 			who = strtol(*argv, &endptr, 10);
 			if (who < 0 || *endptr) {
-				fprintf(stderr, _("renice: %s: bad value\n"),
-					*argv);
+				warnx(_("bad value %s"), *argv);
 				continue;
 			}
 		}
@@ -141,31 +150,34 @@ main(int argc, char **argv)
 	return errs != 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-int
+static int
 donice(int which, int who, int prio) {
 	int oldprio, newprio;
+	const char *idtype = _("process ID");
+
+	if (which == PRIO_USER)
+		idtype = _("user ID");
+	else if (which == PRIO_PGRP)
+		idtype = _("process group ID");
 
 	errno = 0;
 	oldprio = getpriority(which, who);
 	if (oldprio == -1 && errno) {
-		fprintf(stderr, "renice: %d: ", who);
-		perror(_("getpriority"));
+		warn(_("failed to get priority for %d (%s)"), who, idtype);
 		return 1;
 	}
 	if (setpriority(which, who, prio) < 0) {
-		fprintf(stderr, "renice: %d: ", who);
-		perror(_("setpriority"));
+		warn(_("failed to set priority for %d (%s)"), who, idtype);
 		return 1;
 	}
 	errno = 0;
 	newprio = getpriority(which, who);
 	if (newprio == -1 && errno) {
-		fprintf(stderr, "renice: %d: ", who);
-		perror(_("getpriority"));
+		warn(_("failed to get priority for %d (%s)"), who, idtype);
 		return 1;
 	}
 
-	printf(_("%d: old priority %d, new priority %d\n"),
-	       who, oldprio, newprio);
+	printf(_("%d (%s) old priority %d, new priority %d\n"),
+	       who, idtype, oldprio, newprio);
 	return 0;
 }

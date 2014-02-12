@@ -39,35 +39,24 @@ DIST_COMMON = $(am__dist_noinst_DATA_DIST) $(dist_man_MANS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(top_srcdir)/config/include-Makefile.am
 bin_PROGRAMS = $(am__EXEEXT_1)
-usrbin_exec_PROGRAMS = $(am__EXEEXT_4) $(am__EXEEXT_5) $(am__EXEEXT_6) \
-	$(am__EXEEXT_7)
-sbin_PROGRAMS = $(am__EXEEXT_2) $(am__EXEEXT_3)
-usrsbin_exec_PROGRAMS = $(am__EXEEXT_8)
-@BUILD_AGETTY_TRUE@am__append_1 = agetty
-@BUILD_AGETTY_TRUE@am__append_2 = agetty.8
-@BUILD_INIT_TRUE@am__append_3 = simpleinit shutdown initctl
-@BUILD_INIT_TRUE@am__append_4 = fastboot.8 fasthalt.8 halt.8 reboot.8 simpleinit.8 shutdown.8 \
-@BUILD_INIT_TRUE@	initctl.8
-
-@BUILD_LAST_TRUE@am__append_5 = last
-@BUILD_LAST_TRUE@am__append_6 = last.1
-@BUILD_LOGIN_UTILS_TRUE@am__append_7 = login
-@BUILD_LOGIN_UTILS_TRUE@am__append_8 = chfn chsh newgrp
-@BUILD_LOGIN_UTILS_TRUE@am__append_9 = vipw
-@BUILD_LOGIN_UTILS_TRUE@am__append_10 = chfn.1 chsh.1 login.1 newgrp.1 vipw.8 vigr.8
-@BUILD_LOGIN_UTILS_TRUE@@HAVE_PAM_TRUE@am__append_11 = -lpam -lpam_misc
-@BUILD_LOGIN_UTILS_TRUE@@HAVE_PAM_FALSE@@NEED_LIBCRYPT_TRUE@am__append_12 = -lcrypt
-@BUILD_LOGIN_UTILS_TRUE@@HAVE_PAM_FALSE@am__append_13 = checktty.c
-@BUILD_LOGIN_UTILS_TRUE@@NEED_LIBCRYPT_TRUE@am__append_14 = -lcrypt
-@BUILD_LOGIN_UTILS_TRUE@@HAVE_AUDIT_TRUE@am__append_15 = -laudit
-@BUILD_LOGIN_UTILS_TRUE@@HAVE_SELINUX_TRUE@am__append_16 = selinux_utils.c selinux_utils.h
-@BUILD_LOGIN_UTILS_TRUE@@HAVE_SELINUX_TRUE@am__append_17 = selinux_utils.c selinux_utils.h
-@BUILD_LOGIN_UTILS_TRUE@@HAVE_SELINUX_TRUE@am__append_18 = -lselinux
-@BUILD_LOGIN_UTILS_TRUE@@HAVE_SELINUX_TRUE@am__append_19 = -lselinux
-@BUILD_MESG_TRUE@am__append_20 = mesg
-@BUILD_MESG_TRUE@am__append_21 = mesg.1
-@BUILD_WALL_TRUE@am__append_22 = wall
-@BUILD_WALL_TRUE@am__append_23 = wall.1
+usrbin_exec_PROGRAMS = $(am__EXEEXT_2) $(am__EXEEXT_3)
+sbin_PROGRAMS =
+usrsbin_exec_PROGRAMS = $(am__EXEEXT_4)
+@BUILD_LAST_TRUE@am__append_1 = last
+@BUILD_LAST_TRUE@am__append_2 = last.1
+@BUILD_LOGIN_UTILS_TRUE@am__append_3 = login
+@BUILD_LOGIN_UTILS_TRUE@am__append_4 = chfn chsh newgrp
+@BUILD_LOGIN_UTILS_TRUE@am__append_5 = vipw
+@BUILD_LOGIN_UTILS_TRUE@am__append_6 = chfn.1 chsh.1 login.1 newgrp.1 vipw.8 vigr.8
+@BUILD_LOGIN_UTILS_TRUE@@HAVE_PAM_TRUE@am__append_7 = -lpam -lpam_misc
+@BUILD_LOGIN_UTILS_TRUE@@HAVE_PAM_FALSE@@NEED_LIBCRYPT_TRUE@am__append_8 = -lcrypt
+@BUILD_LOGIN_UTILS_TRUE@@HAVE_PAM_FALSE@am__append_9 = checktty.c
+@BUILD_LOGIN_UTILS_TRUE@@NEED_LIBCRYPT_TRUE@am__append_10 = -lcrypt
+@BUILD_LOGIN_UTILS_TRUE@@HAVE_AUDIT_TRUE@am__append_11 = -laudit
+@BUILD_LOGIN_UTILS_TRUE@@HAVE_SELINUX_TRUE@am__append_12 = selinux_utils.c selinux_utils.h
+@BUILD_LOGIN_UTILS_TRUE@@HAVE_SELINUX_TRUE@am__append_13 = selinux_utils.c selinux_utils.h
+@BUILD_LOGIN_UTILS_TRUE@@HAVE_SELINUX_TRUE@am__append_14 = -lselinux
+@BUILD_LOGIN_UTILS_TRUE@@HAVE_SELINUX_TRUE@am__append_15 = -lselinux
 noinst_PROGRAMS = checktty_test$(EXEEXT) islocal_test$(EXEEXT)
 subdir = login-utils
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -90,28 +79,20 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(usrbin_execdir)" "$(DESTDIR)$(usrsbin_execdir)" \
 	"$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)"
-@BUILD_AGETTY_TRUE@am__EXEEXT_2 = agetty$(EXEEXT)
-@BUILD_INIT_TRUE@am__EXEEXT_3 = simpleinit$(EXEEXT) shutdown$(EXEEXT) \
-@BUILD_INIT_TRUE@	initctl$(EXEEXT)
-@BUILD_LAST_TRUE@am__EXEEXT_4 = last$(EXEEXT)
-@BUILD_LOGIN_UTILS_TRUE@am__EXEEXT_5 = chfn$(EXEEXT) chsh$(EXEEXT) \
+@BUILD_LAST_TRUE@am__EXEEXT_2 = last$(EXEEXT)
+@BUILD_LOGIN_UTILS_TRUE@am__EXEEXT_3 = chfn$(EXEEXT) chsh$(EXEEXT) \
 @BUILD_LOGIN_UTILS_TRUE@	newgrp$(EXEEXT)
-@BUILD_MESG_TRUE@am__EXEEXT_6 = mesg$(EXEEXT)
-@BUILD_WALL_TRUE@am__EXEEXT_7 = wall$(EXEEXT)
-@BUILD_LOGIN_UTILS_TRUE@am__EXEEXT_8 = vipw$(EXEEXT)
+@BUILD_LOGIN_UTILS_TRUE@am__EXEEXT_4 = vipw$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS) $(sbin_PROGRAMS) \
 	$(usrbin_exec_PROGRAMS) $(usrsbin_exec_PROGRAMS)
-agetty_SOURCES = agetty.c
-agetty_OBJECTS = agetty.$(OBJEXT)
-agetty_LDADD = $(LDADD)
-AM_V_lt = $(am__v_lt_$(V))
-am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
-am__v_lt_0 = --silent
 am_checktty_test_OBJECTS = checktty_test-checktty.$(OBJEXT)
 checktty_test_OBJECTS = $(am_checktty_test_OBJECTS)
 checktty_test_LDADD = $(LDADD)
+AM_V_lt = $(am__v_lt_$(V))
+am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
+am__v_lt_0 = --silent
 am__chfn_SOURCES_DIST = chfn.c islocal.c setpwnam.c islocal.h \
-	my_crypt.h setpwnam.h ../lib/env.c selinux_utils.c \
+	setpwnam.h $(top_srcdir)/lib/env.c selinux_utils.c \
 	selinux_utils.h
 @BUILD_LOGIN_UTILS_TRUE@am__objects_1 = chfn-islocal.$(OBJEXT) \
 @BUILD_LOGIN_UTILS_TRUE@	chfn-setpwnam.$(OBJEXT) \
@@ -129,7 +110,7 @@ chfn_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(chfn_CFLAGS) $(CFLAGS) \
 	$(chfn_LDFLAGS) $(LDFLAGS) -o $@
 am__chsh_SOURCES_DIST = chsh.c islocal.c setpwnam.c islocal.h \
-	my_crypt.h setpwnam.h ../lib/env.c selinux_utils.c \
+	setpwnam.h $(top_srcdir)/lib/env.c selinux_utils.c \
 	selinux_utils.h
 @BUILD_LOGIN_UTILS_TRUE@am__objects_3 = chsh-islocal.$(OBJEXT) \
 @BUILD_LOGIN_UTILS_TRUE@	chsh-setpwnam.$(OBJEXT) \
@@ -142,18 +123,14 @@ chsh_OBJECTS = $(am_chsh_OBJECTS)
 chsh_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(chsh_CFLAGS) $(CFLAGS) \
 	$(chsh_LDFLAGS) $(LDFLAGS) -o $@
-am__initctl_SOURCES_DIST = initctl.c simpleinit.h
-@BUILD_INIT_TRUE@am_initctl_OBJECTS = initctl.$(OBJEXT)
-initctl_OBJECTS = $(am_initctl_OBJECTS)
-initctl_LDADD = $(LDADD)
 am_islocal_test_OBJECTS = islocal_test-islocal.$(OBJEXT)
 islocal_test_OBJECTS = $(am_islocal_test_OBJECTS)
 islocal_test_LDADD = $(LDADD)
 last_SOURCES = last.c
 last_OBJECTS = last.$(OBJEXT)
 last_LDADD = $(LDADD)
-am__login_SOURCES_DIST = login.c login.h my_crypt.h \
-	../lib/setproctitle.c checktty.c
+am__login_SOURCES_DIST = login.c login.h \
+	$(top_srcdir)/lib/setproctitle.c checktty.c
 @BUILD_LOGIN_UTILS_TRUE@@HAVE_PAM_FALSE@am__objects_5 =  \
 @BUILD_LOGIN_UTILS_TRUE@@HAVE_PAM_FALSE@	checktty.$(OBJEXT)
 @BUILD_LOGIN_UTILS_TRUE@am_login_OBJECTS = login.$(OBJEXT) \
@@ -162,31 +139,16 @@ am__login_SOURCES_DIST = login.c login.h my_crypt.h \
 login_OBJECTS = $(am_login_OBJECTS)
 @BUILD_LOGIN_UTILS_TRUE@login_DEPENDENCIES = $(am__DEPENDENCIES_2) \
 @BUILD_LOGIN_UTILS_TRUE@	$(am__DEPENDENCIES_1)
-mesg_SOURCES = mesg.c
-mesg_OBJECTS = mesg.$(OBJEXT)
-mesg_LDADD = $(LDADD)
-am__newgrp_SOURCES_DIST = newgrp.c my_crypt.h
-@BUILD_LOGIN_UTILS_TRUE@am_newgrp_OBJECTS = newgrp-newgrp.$(OBJEXT)
-newgrp_OBJECTS = $(am_newgrp_OBJECTS)
+newgrp_SOURCES = newgrp.c
+newgrp_OBJECTS = newgrp-newgrp.$(OBJEXT)
 @BUILD_LOGIN_UTILS_TRUE@newgrp_DEPENDENCIES = $(am__DEPENDENCIES_1)
 newgrp_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(newgrp_CFLAGS) $(CFLAGS) \
 	$(newgrp_LDFLAGS) $(LDFLAGS) -o $@
-shutdown_SOURCES = shutdown.c
-shutdown_OBJECTS = shutdown.$(OBJEXT)
-shutdown_LDADD = $(LDADD)
-am__simpleinit_SOURCES_DIST = simpleinit.c my_crypt.h simpleinit.h
-@BUILD_INIT_TRUE@am_simpleinit_OBJECTS = simpleinit.$(OBJEXT)
-simpleinit_OBJECTS = $(am_simpleinit_OBJECTS)
-simpleinit_DEPENDENCIES =
 am__vipw_SOURCES_DIST = vipw.c setpwnam.h
 @BUILD_LOGIN_UTILS_TRUE@am_vipw_OBJECTS = vipw.$(OBJEXT)
 vipw_OBJECTS = $(am_vipw_OBJECTS)
 @BUILD_LOGIN_UTILS_TRUE@vipw_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am__wall_SOURCES_DIST = wall.c ttymsg.c ttymsg.h
-@BUILD_WALL_TRUE@am_wall_OBJECTS = wall.$(OBJEXT) ttymsg.$(OBJEXT)
-wall_OBJECTS = $(am_wall_OBJECTS)
-wall_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -213,16 +175,12 @@ am__v_CCLD_0 = @echo "  CCLD  " $@;
 AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
-SOURCES = agetty.c $(checktty_test_SOURCES) $(chfn_SOURCES) \
-	$(chsh_SOURCES) $(initctl_SOURCES) $(islocal_test_SOURCES) \
-	last.c $(login_SOURCES) mesg.c $(newgrp_SOURCES) shutdown.c \
-	$(simpleinit_SOURCES) $(vipw_SOURCES) $(wall_SOURCES)
-DIST_SOURCES = agetty.c $(checktty_test_SOURCES) \
-	$(am__chfn_SOURCES_DIST) $(am__chsh_SOURCES_DIST) \
-	$(am__initctl_SOURCES_DIST) $(islocal_test_SOURCES) last.c \
-	$(am__login_SOURCES_DIST) mesg.c $(am__newgrp_SOURCES_DIST) \
-	shutdown.c $(am__simpleinit_SOURCES_DIST) \
-	$(am__vipw_SOURCES_DIST) $(am__wall_SOURCES_DIST)
+SOURCES = $(checktty_test_SOURCES) $(chfn_SOURCES) $(chsh_SOURCES) \
+	$(islocal_test_SOURCES) last.c $(login_SOURCES) newgrp.c \
+	$(vipw_SOURCES)
+DIST_SOURCES = $(checktty_test_SOURCES) $(am__chfn_SOURCES_DIST) \
+	$(am__chsh_SOURCES_DIST) $(islocal_test_SOURCES) last.c \
+	$(am__login_SOURCES_DIST) newgrp.c $(am__vipw_SOURCES_DIST)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -248,9 +206,8 @@ man1dir = $(mandir)/man1
 man8dir = $(mandir)/man8
 NROFF = nroff
 MANS = $(dist_man_MANS)
-am__dist_noinst_DATA_DIST = agetty.8 fastboot.8 fasthalt.8 halt.8 \
-	reboot.8 simpleinit.8 shutdown.8 initctl.8 last.1 chfn.1 \
-	chsh.1 login.1 newgrp.1 vipw.8 vigr.8 mesg.1 wall.1
+am__dist_noinst_DATA_DIST = last.1 chfn.1 chsh.1 login.1 newgrp.1 \
+	vipw.8 vigr.8
 DATA = $(dist_noinst_DATA)
 ETAGS = etags
 CTAGS = ctags
@@ -263,9 +220,6 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BLKID_CFLAGS = @BLKID_CFLAGS@
-BLKID_LIBS = @BLKID_LIBS@
-BLKID_LIBS_STATIC = @BLKID_LIBS_STATIC@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
@@ -274,6 +228,7 @@ CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DLLTOOL = @DLLTOOL@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -299,6 +254,8 @@ LIBBLKID_VERSION = @LIBBLKID_VERSION@
 LIBBLKID_VERSION_INFO = @LIBBLKID_VERSION_INFO@
 LIBICONV = @LIBICONV@
 LIBINTL = @LIBINTL@
+LIBMOUNT_VERSION = @LIBMOUNT_VERSION@
+LIBMOUNT_VERSION_INFO = @LIBMOUNT_VERSION_INFO@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -310,6 +267,7 @@ LTLIBICONV = @LTLIBICONV@
 LTLIBINTL = @LTLIBINTL@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
+MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
 MKINSTALLDIRS = @MKINSTALLDIRS@
 MSGFMT = @MSGFMT@
@@ -326,10 +284,13 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
+PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PERL = @PERL@
 PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
 RANLIB = @RANLIB@
 SED = @SED@
@@ -337,12 +298,11 @@ SELINUX_LIBS = @SELINUX_LIBS@
 SELINUX_LIBS_STATIC = @SELINUX_LIBS_STATIC@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SOCKET_LIBS = @SOCKET_LIBS@
 STRIP = @STRIP@
 SUID_CFLAGS = @SUID_CFLAGS@
 SUID_LDFLAGS = @SUID_LDFLAGS@
 USE_NLS = @USE_NLS@
-UUID_CFLAGS = @UUID_CFLAGS@
-UUID_LIBS = @UUID_LIBS@
 VERSION = @VERSION@
 XGETTEXT = @XGETTEXT@
 XSLTPROC = @XSLTPROC@
@@ -350,6 +310,7 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
+ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
@@ -383,7 +344,6 @@ libdirname = @libdirname@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -417,51 +377,54 @@ dist_noinst_DATA = $(dist_man_MANS)
 # Paths to in-tree libraries (use ul_ prefix to avoid possible collisions)
 #
 # blkid
-ul_libblkid_srcdir = $(top_srcdir)/shlibs/blkid/src
-ul_libblkid_builddir = $(top_builddir)/shlibs/blkid/src
-ul_libblkid_la = $(top_builddir)/shlibs/blkid/src/libblkid.la
+ul_libblkid_srcdir = $(top_srcdir)/libblkid/src
+ul_libblkid_builddir = $(top_builddir)/libblkid/src
+ul_libblkid_la = $(top_builddir)/libblkid/src/libblkid.la
 
 # blkid.h is generated by ./configure script and stored in build directory
 ul_libblkid_incdir = $(ul_libblkid_builddir)
 
 # uuid
-ul_libuuid_srcdir = $(top_srcdir)/shlibs/uuid/src
-ul_libuuid_builddir = $(top_builddir)/shlibs/uuid/src
-ul_libuuid_la = $(top_builddir)/shlibs/uuid/src/libuuid.la
-dist_man_MANS = $(am__append_2) $(am__append_4) $(am__append_6) \
-	$(am__append_10) $(am__append_21) $(am__append_23)
-EXTRA_DIST = README.getty  README.modems-with-agetty  README.poeigl
-@BUILD_INIT_TRUE@simpleinit_SOURCES = simpleinit.c my_crypt.h simpleinit.h
-@BUILD_INIT_TRUE@initctl_SOURCES = initctl.c simpleinit.h
-@BUILD_INIT_TRUE@@NEED_LIBCRYPT_TRUE@simpleinit_LDADD = -lcrypt
+ul_libuuid_srcdir = $(top_srcdir)/libuuid/src
+ul_libuuid_builddir = $(top_builddir)/libuuid/src
+ul_libuuid_la = $(top_builddir)/libuuid/src/libuuid.la
+
+# mount
+ul_libmount_srcdir = $(top_srcdir)/libmount/src
+ul_libmount_builddir = $(top_builddir)/libmount/src
+ul_libmount_la = $(top_builddir)/libmount/src/libmount.la
+
+# libmount.h is generated by ./configure script and stored in build directory
+ul_libmount_incdir = $(ul_libmount_builddir)
+dist_man_MANS = $(am__append_2) $(am__append_6)
+EXTRA_DIST = README.poeigl
 
 # login, chfn and chsh libs
-@BUILD_LOGIN_UTILS_TRUE@login_ldadd_common = $(am__append_11) \
-@BUILD_LOGIN_UTILS_TRUE@	$(am__append_12) $(am__append_19)
+@BUILD_LOGIN_UTILS_TRUE@login_ldadd_common = $(am__append_7) \
+@BUILD_LOGIN_UTILS_TRUE@	$(am__append_8) $(am__append_15)
 @BUILD_LOGIN_UTILS_TRUE@chfn_SOURCES = chfn.c $(chfn_chsh_common) \
-@BUILD_LOGIN_UTILS_TRUE@	$(am__append_16)
+@BUILD_LOGIN_UTILS_TRUE@	$(am__append_12)
 @BUILD_LOGIN_UTILS_TRUE@chsh_SOURCES = chsh.c $(chfn_chsh_common) \
-@BUILD_LOGIN_UTILS_TRUE@	$(am__append_17)
-@BUILD_LOGIN_UTILS_TRUE@chfn_chsh_common = islocal.c setpwnam.c islocal.h my_crypt.h setpwnam.h \
-@BUILD_LOGIN_UTILS_TRUE@	../lib/env.c
+@BUILD_LOGIN_UTILS_TRUE@	$(am__append_13)
+@BUILD_LOGIN_UTILS_TRUE@chfn_chsh_common = islocal.c setpwnam.c islocal.h setpwnam.h \
+@BUILD_LOGIN_UTILS_TRUE@	$(top_srcdir)/lib/env.c
 
-@BUILD_LOGIN_UTILS_TRUE@login_SOURCES = login.c login.h my_crypt.h \
-@BUILD_LOGIN_UTILS_TRUE@	../lib/setproctitle.c $(am__append_13)
-@BUILD_LOGIN_UTILS_TRUE@newgrp_SOURCES = newgrp.c my_crypt.h
+@BUILD_LOGIN_UTILS_TRUE@login_SOURCES = login.c login.h \
+@BUILD_LOGIN_UTILS_TRUE@	$(top_srcdir)/lib/setproctitle.c \
+@BUILD_LOGIN_UTILS_TRUE@	$(am__append_9)
 @BUILD_LOGIN_UTILS_TRUE@vipw_SOURCES = vipw.c setpwnam.h
 @BUILD_LOGIN_UTILS_TRUE@chfn_LDADD = $(login_ldadd_common)
 @BUILD_LOGIN_UTILS_TRUE@chsh_LDADD = $(login_ldadd_common)
 @BUILD_LOGIN_UTILS_TRUE@login_LDADD = $(login_ldadd_common) \
-@BUILD_LOGIN_UTILS_TRUE@	$(am__append_15)
-@BUILD_LOGIN_UTILS_TRUE@newgrp_LDADD = $(am__append_14)
-@BUILD_LOGIN_UTILS_TRUE@vipw_LDADD = $(am__append_18)
+@BUILD_LOGIN_UTILS_TRUE@	$(am__append_11)
+@BUILD_LOGIN_UTILS_TRUE@newgrp_LDADD = $(am__append_10)
+@BUILD_LOGIN_UTILS_TRUE@vipw_LDADD = $(am__append_14)
 @BUILD_LOGIN_UTILS_TRUE@chfn_CFLAGS = $(SUID_CFLAGS) $(AM_CFLAGS)
 @BUILD_LOGIN_UTILS_TRUE@chsh_CFLAGS = $(SUID_CFLAGS) $(AM_CFLAGS)
 @BUILD_LOGIN_UTILS_TRUE@newgrp_CFLAGS = $(SUID_CFLAGS) $(AM_CFLAGS)
 @BUILD_LOGIN_UTILS_TRUE@chfn_LDFLAGS = $(SUID_LDFLAGS) $(AM_LDFLAGS)
 @BUILD_LOGIN_UTILS_TRUE@chsh_LDFLAGS = $(SUID_LDFLAGS) $(AM_LDFLAGS)
 @BUILD_LOGIN_UTILS_TRUE@newgrp_LDFLAGS = $(SUID_LDFLAGS) $(AM_LDFLAGS)
-@BUILD_WALL_TRUE@wall_SOURCES = wall.c ttymsg.c ttymsg.h
 checktty_test_SOURCES = checktty.c login.h
 checktty_test_CPPFLAGS = -DMAIN_TEST_CHECKTTY $(AM_CPPFLAGS)
 islocal_test_SOURCES = islocal.c
@@ -681,9 +644,6 @@ clean-usrsbin_execPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
-agetty$(EXEEXT): $(agetty_OBJECTS) $(agetty_DEPENDENCIES) 
-	@rm -f agetty$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(agetty_OBJECTS) $(agetty_LDADD) $(LIBS)
 checktty_test$(EXEEXT): $(checktty_test_OBJECTS) $(checktty_test_DEPENDENCIES) 
 	@rm -f checktty_test$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(checktty_test_OBJECTS) $(checktty_test_LDADD) $(LIBS)
@@ -693,9 +653,6 @@ chfn$(EXEEXT): $(chfn_OBJECTS) $(chfn_DEPENDENCIES)
 chsh$(EXEEXT): $(chsh_OBJECTS) $(chsh_DEPENDENCIES) 
 	@rm -f chsh$(EXEEXT)
 	$(AM_V_CCLD)$(chsh_LINK) $(chsh_OBJECTS) $(chsh_LDADD) $(LIBS)
-initctl$(EXEEXT): $(initctl_OBJECTS) $(initctl_DEPENDENCIES) 
-	@rm -f initctl$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(initctl_OBJECTS) $(initctl_LDADD) $(LIBS)
 islocal_test$(EXEEXT): $(islocal_test_OBJECTS) $(islocal_test_DEPENDENCIES) 
 	@rm -f islocal_test$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(islocal_test_OBJECTS) $(islocal_test_LDADD) $(LIBS)
@@ -705,24 +662,12 @@ last$(EXEEXT): $(last_OBJECTS) $(last_DEPENDENCIES)
 login$(EXEEXT): $(login_OBJECTS) $(login_DEPENDENCIES) 
 	@rm -f login$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(login_OBJECTS) $(login_LDADD) $(LIBS)
-mesg$(EXEEXT): $(mesg_OBJECTS) $(mesg_DEPENDENCIES) 
-	@rm -f mesg$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(mesg_OBJECTS) $(mesg_LDADD) $(LIBS)
 newgrp$(EXEEXT): $(newgrp_OBJECTS) $(newgrp_DEPENDENCIES) 
 	@rm -f newgrp$(EXEEXT)
 	$(AM_V_CCLD)$(newgrp_LINK) $(newgrp_OBJECTS) $(newgrp_LDADD) $(LIBS)
-shutdown$(EXEEXT): $(shutdown_OBJECTS) $(shutdown_DEPENDENCIES) 
-	@rm -f shutdown$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(shutdown_OBJECTS) $(shutdown_LDADD) $(LIBS)
-simpleinit$(EXEEXT): $(simpleinit_OBJECTS) $(simpleinit_DEPENDENCIES) 
-	@rm -f simpleinit$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(simpleinit_OBJECTS) $(simpleinit_LDADD) $(LIBS)
 vipw$(EXEEXT): $(vipw_OBJECTS) $(vipw_DEPENDENCIES) 
 	@rm -f vipw$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(vipw_OBJECTS) $(vipw_LDADD) $(LIBS)
-wall$(EXEEXT): $(wall_OBJECTS) $(wall_DEPENDENCIES) 
-	@rm -f wall$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(wall_OBJECTS) $(wall_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -730,7 +675,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/agetty.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/checktty.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/checktty_test-checktty.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chfn-chfn.Po@am__quote@
@@ -743,18 +687,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chsh-islocal.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chsh-selinux_utils.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chsh-setpwnam.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/initctl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/islocal_test-islocal.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/last.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/login.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mesg.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/newgrp-newgrp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/setproctitle.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shutdown.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simpleinit.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ttymsg.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vipw.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wall.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -844,21 +782,21 @@ chfn-setpwnam.obj: setpwnam.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -c -o chfn-setpwnam.obj `if test -f 'setpwnam.c'; then $(CYGPATH_W) 'setpwnam.c'; else $(CYGPATH_W) '$(srcdir)/setpwnam.c'; fi`
 
-chfn-env.o: ../lib/env.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -MT chfn-env.o -MD -MP -MF $(DEPDIR)/chfn-env.Tpo -c -o chfn-env.o `test -f '../lib/env.c' || echo '$(srcdir)/'`../lib/env.c
+chfn-env.o: $(top_srcdir)/lib/env.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -MT chfn-env.o -MD -MP -MF $(DEPDIR)/chfn-env.Tpo -c -o chfn-env.o `test -f '$(top_srcdir)/lib/env.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/env.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/chfn-env.Tpo $(DEPDIR)/chfn-env.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/env.c' object='chfn-env.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/env.c' object='chfn-env.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -c -o chfn-env.o `test -f '../lib/env.c' || echo '$(srcdir)/'`../lib/env.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -c -o chfn-env.o `test -f '$(top_srcdir)/lib/env.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/env.c
 
-chfn-env.obj: ../lib/env.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -MT chfn-env.obj -MD -MP -MF $(DEPDIR)/chfn-env.Tpo -c -o chfn-env.obj `if test -f '../lib/env.c'; then $(CYGPATH_W) '../lib/env.c'; else $(CYGPATH_W) '$(srcdir)/../lib/env.c'; fi`
+chfn-env.obj: $(top_srcdir)/lib/env.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -MT chfn-env.obj -MD -MP -MF $(DEPDIR)/chfn-env.Tpo -c -o chfn-env.obj `if test -f '$(top_srcdir)/lib/env.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/env.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/env.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/chfn-env.Tpo $(DEPDIR)/chfn-env.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/env.c' object='chfn-env.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/env.c' object='chfn-env.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -c -o chfn-env.obj `if test -f '../lib/env.c'; then $(CYGPATH_W) '../lib/env.c'; else $(CYGPATH_W) '$(srcdir)/../lib/env.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -c -o chfn-env.obj `if test -f '$(top_srcdir)/lib/env.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/env.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/env.c'; fi`
 
 chfn-selinux_utils.o: selinux_utils.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chfn_CFLAGS) $(CFLAGS) -MT chfn-selinux_utils.o -MD -MP -MF $(DEPDIR)/chfn-selinux_utils.Tpo -c -o chfn-selinux_utils.o `test -f 'selinux_utils.c' || echo '$(srcdir)/'`selinux_utils.c
@@ -924,21 +862,21 @@ chsh-setpwnam.obj: setpwnam.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -c -o chsh-setpwnam.obj `if test -f 'setpwnam.c'; then $(CYGPATH_W) 'setpwnam.c'; else $(CYGPATH_W) '$(srcdir)/setpwnam.c'; fi`
 
-chsh-env.o: ../lib/env.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -MT chsh-env.o -MD -MP -MF $(DEPDIR)/chsh-env.Tpo -c -o chsh-env.o `test -f '../lib/env.c' || echo '$(srcdir)/'`../lib/env.c
+chsh-env.o: $(top_srcdir)/lib/env.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -MT chsh-env.o -MD -MP -MF $(DEPDIR)/chsh-env.Tpo -c -o chsh-env.o `test -f '$(top_srcdir)/lib/env.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/env.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/chsh-env.Tpo $(DEPDIR)/chsh-env.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/env.c' object='chsh-env.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/env.c' object='chsh-env.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -c -o chsh-env.o `test -f '../lib/env.c' || echo '$(srcdir)/'`../lib/env.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -c -o chsh-env.o `test -f '$(top_srcdir)/lib/env.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/env.c
 
-chsh-env.obj: ../lib/env.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -MT chsh-env.obj -MD -MP -MF $(DEPDIR)/chsh-env.Tpo -c -o chsh-env.obj `if test -f '../lib/env.c'; then $(CYGPATH_W) '../lib/env.c'; else $(CYGPATH_W) '$(srcdir)/../lib/env.c'; fi`
+chsh-env.obj: $(top_srcdir)/lib/env.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -MT chsh-env.obj -MD -MP -MF $(DEPDIR)/chsh-env.Tpo -c -o chsh-env.obj `if test -f '$(top_srcdir)/lib/env.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/env.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/env.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/chsh-env.Tpo $(DEPDIR)/chsh-env.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/env.c' object='chsh-env.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/env.c' object='chsh-env.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -c -o chsh-env.obj `if test -f '../lib/env.c'; then $(CYGPATH_W) '../lib/env.c'; else $(CYGPATH_W) '$(srcdir)/../lib/env.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -c -o chsh-env.obj `if test -f '$(top_srcdir)/lib/env.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/env.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/env.c'; fi`
 
 chsh-selinux_utils.o: selinux_utils.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chsh_CFLAGS) $(CFLAGS) -MT chsh-selinux_utils.o -MD -MP -MF $(DEPDIR)/chsh-selinux_utils.Tpo -c -o chsh-selinux_utils.o `test -f 'selinux_utils.c' || echo '$(srcdir)/'`selinux_utils.c
@@ -972,21 +910,21 @@ islocal_test-islocal.obj: islocal.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(islocal_test_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o islocal_test-islocal.obj `if test -f 'islocal.c'; then $(CYGPATH_W) 'islocal.c'; else $(CYGPATH_W) '$(srcdir)/islocal.c'; fi`
 
-setproctitle.o: ../lib/setproctitle.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT setproctitle.o -MD -MP -MF $(DEPDIR)/setproctitle.Tpo -c -o setproctitle.o `test -f '../lib/setproctitle.c' || echo '$(srcdir)/'`../lib/setproctitle.c
+setproctitle.o: $(top_srcdir)/lib/setproctitle.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT setproctitle.o -MD -MP -MF $(DEPDIR)/setproctitle.Tpo -c -o setproctitle.o `test -f '$(top_srcdir)/lib/setproctitle.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/setproctitle.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/setproctitle.Tpo $(DEPDIR)/setproctitle.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/setproctitle.c' object='setproctitle.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/setproctitle.c' object='setproctitle.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o setproctitle.o `test -f '../lib/setproctitle.c' || echo '$(srcdir)/'`../lib/setproctitle.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o setproctitle.o `test -f '$(top_srcdir)/lib/setproctitle.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/setproctitle.c
 
-setproctitle.obj: ../lib/setproctitle.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT setproctitle.obj -MD -MP -MF $(DEPDIR)/setproctitle.Tpo -c -o setproctitle.obj `if test -f '../lib/setproctitle.c'; then $(CYGPATH_W) '../lib/setproctitle.c'; else $(CYGPATH_W) '$(srcdir)/../lib/setproctitle.c'; fi`
+setproctitle.obj: $(top_srcdir)/lib/setproctitle.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT setproctitle.obj -MD -MP -MF $(DEPDIR)/setproctitle.Tpo -c -o setproctitle.obj `if test -f '$(top_srcdir)/lib/setproctitle.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/setproctitle.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/setproctitle.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/setproctitle.Tpo $(DEPDIR)/setproctitle.Po
 @am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../lib/setproctitle.c' object='setproctitle.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/setproctitle.c' object='setproctitle.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o setproctitle.obj `if test -f '../lib/setproctitle.c'; then $(CYGPATH_W) '../lib/setproctitle.c'; else $(CYGPATH_W) '$(srcdir)/../lib/setproctitle.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o setproctitle.obj `if test -f '$(top_srcdir)/lib/setproctitle.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/setproctitle.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/setproctitle.c'; fi`
 
 newgrp-newgrp.o: newgrp.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newgrp_CFLAGS) $(CFLAGS) -MT newgrp-newgrp.o -MD -MP -MF $(DEPDIR)/newgrp-newgrp.Tpo -c -o newgrp-newgrp.o `test -f 'newgrp.c' || echo '$(srcdir)/'`newgrp.c
@@ -1213,10 +1151,7 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@BUILD_INIT_FALSE@@BUILD_LOGIN_UTILS_FALSE@@BUILD_WALL_FALSE@install-exec-hook:
-@BUILD_INIT_FALSE@@BUILD_LOGIN_UTILS_FALSE@@MAKEINSTALL_DO_CHOWN_FALSE@install-exec-hook:
-@BUILD_INIT_FALSE@@BUILD_LOGIN_UTILS_FALSE@@USE_TTY_GROUP_FALSE@install-exec-hook:
-@BUILD_INIT_FALSE@install-data-hook:
+@BUILD_LOGIN_UTILS_FALSE@install-exec-hook:
 clean: clean-am
 
 clean-am: clean-binPROGRAMS clean-generic clean-libtool \
@@ -1243,8 +1178,7 @@ info: info-am
 info-am:
 
 install-data-am: install-man
-	@$(NORMAL_INSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
+
 install-dvi: install-dvi-am
 
 install-dvi-am:
@@ -1297,7 +1231,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-man \
 
 uninstall-man: uninstall-man1 uninstall-man8
 
-.MAKE: install-am install-data-am install-exec-am install-strip
+.MAKE: install-am install-exec-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-binPROGRAMS \
 	clean-generic clean-libtool clean-noinstPROGRAMS \
@@ -1305,20 +1239,19 @@ uninstall-man: uninstall-man1 uninstall-man8
 	clean-usrsbin_execPROGRAMS ctags distclean distclean-compile \
 	distclean-generic distclean-libtool distclean-tags distdir dvi \
 	dvi-am html html-am info info-am install install-am \
-	install-binPROGRAMS install-data install-data-am \
-	install-data-hook install-dvi install-dvi-am install-exec \
-	install-exec-am install-exec-hook install-html install-html-am \
-	install-info install-info-am install-man install-man1 \
-	install-man8 install-pdf install-pdf-am install-ps \
-	install-ps-am install-sbinPROGRAMS install-strip \
-	install-usrbin_execPROGRAMS install-usrsbin_execPROGRAMS \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags uninstall uninstall-am uninstall-binPROGRAMS \
-	uninstall-man uninstall-man1 uninstall-man8 \
-	uninstall-sbinPROGRAMS uninstall-usrbin_execPROGRAMS \
-	uninstall-usrsbin_execPROGRAMS
+	install-binPROGRAMS install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-exec-hook \
+	install-html install-html-am install-info install-info-am \
+	install-man install-man1 install-man8 install-pdf \
+	install-pdf-am install-ps install-ps-am install-sbinPROGRAMS \
+	install-strip install-usrbin_execPROGRAMS \
+	install-usrsbin_execPROGRAMS installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
+	uninstall-am uninstall-binPROGRAMS uninstall-man \
+	uninstall-man1 uninstall-man8 uninstall-sbinPROGRAMS \
+	uninstall-usrbin_execPROGRAMS uninstall-usrsbin_execPROGRAMS
 
 
 $(ul_libblkid_la):
@@ -1327,26 +1260,11 @@ $(ul_libblkid_la):
 $(ul_libuuid_la):
 	$(MAKE) -C $(ul_libuuid_builddir)
 
+$(ul_libmount_la):
+	$(MAKE) -C $(ul_libmount_builddir)
+
 @BUILD_LOGIN_UTILS_TRUE@install-exec-hook::
 @BUILD_LOGIN_UTILS_TRUE@	cd $(DESTDIR)$(usrsbin_execdir) && ln -sf vipw vigr
-
-@BUILD_WALL_TRUE@@MAKEINSTALL_DO_CHOWN_TRUE@@USE_TTY_GROUP_TRUE@install-exec-hook::
-@BUILD_WALL_TRUE@@MAKEINSTALL_DO_CHOWN_TRUE@@USE_TTY_GROUP_TRUE@	chgrp tty $(DESTDIR)$(usrbin_execdir)/wall
-@BUILD_WALL_TRUE@@MAKEINSTALL_DO_CHOWN_TRUE@@USE_TTY_GROUP_TRUE@	chmod g+s $(DESTDIR)$(usrbin_execdir)/wall
-
-@BUILD_INIT_TRUE@install-exec-hook::
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(sbindir) && ln -sf shutdown reboot
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(sbindir) && ln -sf shutdown fastboot
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(sbindir) && ln -sf shutdown halt
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(sbindir) && ln -sf shutdown fasthalt
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(sbindir) && ln -sf initctl need
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(sbindir) && ln -sf initctl display-services
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(sbindir) && ln -sf initctl provide
-
-@BUILD_INIT_TRUE@install-data-hook:
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(mandir)/man8 && ln -sf initctl.8 need.8
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(mandir)/man8 && ln -sf initctl.8 display-services.8
-@BUILD_INIT_TRUE@	cd $(DESTDIR)$(mandir)/man8 && ln -sf initctl.8 provide.8
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

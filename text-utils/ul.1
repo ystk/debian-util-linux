@@ -31,19 +31,19 @@
 .\"
 .\"     @(#)ul.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd June 6, 1993
-.Dt UL 1
-.Os BSD 4
+.Dd August 2011 "  "
+.Dt UL(1) "" "User Commands"
+.Os util-linux
 .Sh NAME
 .Nm ul
 .Nd do underlining
 .Sh SYNOPSIS
 .Nm ul
-.Op Fl i
+.Op Fl hiV
 .Op Fl t Ar terminal
-.Op Ar name Ar ...
+.Op Ar file Ar ...
 .Sh DESCRIPTION
-.Nm Ul
+.Nm ul
 reads the named files (or standard input if none are given)
 and translates occurrences of underscores to the sequence
 which indicates underlining for the terminal in use, as specified
@@ -52,8 +52,8 @@ by the environment variable
 The
 .Pa terminfo
 database is read to determine the appropriate sequences for underlining.
-If the terminal is incapable of underlining, but is capable of
-a standout mode then that is used instead.
+If the terminal is incapable of underlining but is capable of
+a standout mode, then that is used instead.
 If the terminal can overstrike,
 or handles underlining automatically,
 .Nm ul
@@ -63,6 +63,8 @@ If the terminal cannot underline, underlining is ignored.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
+.It Fl h
+Display a help text and exit.
 .It Fl i
 Underlining is indicated by a separate line containing appropriate
 dashes `\-'; this is useful when you want to look at the underlining
@@ -72,6 +74,8 @@ output stream on a crt-terminal.
 .It Fl t Ar terminal
 Overrides the terminal type specified in the environment with
 .Ar terminal .
+.It Fl V
+Display version information and exit.
 .El
 .Sh ENVIRONMENT
 The following environment variable is used:
@@ -106,5 +110,5 @@ The
 command appeared in
 .Bx 3.0 .
 .Sh AVAILABILITY
-The ul command is part of the util-linux-ng package and is available from
-ftp://ftp.kernel.org/pub/linux/utils/util-linux-ng/.
+The ul command is part of the util-linux package and is available from
+ftp://ftp.kernel.org/pub/linux/utils/util-linux/.
