@@ -46,68 +46,59 @@
 #include <string.h>
 #include <ctype.h>
 #include "nls.h"
-
-void zerof(void);
-void getlist(int *, char ***, char ***, int *);
-void lookup(char *);
-void looksrc(char *);
-void lookbin(char *);
-void lookman(char *);
-void findv(char **, int, char *);
-void find(char **, char *);
-void findin(char *, char *);
-int itsit(char *, char *);
+#include "c.h"
 
 static char *bindirs[] = {
-   "/bin",
-   "/usr/bin",
-   "/sbin",
-   "/usr/sbin",
-   "/etc",
-   "/usr/etc",
-   "/lib",
-   "/usr/lib",
-   "/lib64",
-   "/usr/lib64",
-   "/usr/games",
-   "/usr/games/bin",
-   "/usr/games/lib",
-   "/usr/emacs/etc",
-   "/usr/lib/emacs/*/etc",
-   "/usr/TeX/bin",
-   "/usr/tex/bin",
-   "/usr/interviews/bin/LINUX",
-   
-   "/usr/X386/bin",
-   "/usr/X11/bin",
-   "/usr/X11R5/bin",
+	"/bin",
+	"/usr/bin",
+	"/sbin",
+	"/usr/sbin",
+	"/etc",
+	"/usr/etc",
+	"/lib",
+	"/usr/lib",
+	"/lib64",
+	"/usr/lib64",
+	"/usr/games",
+	"/usr/games/bin",
+	"/usr/games/lib",
+	"/usr/emacs/etc",
+	"/usr/lib/emacs/*/etc",
+	"/usr/TeX/bin",
+	"/usr/tex/bin",
+	"/usr/interviews/bin/LINUX",
 
-   "/usr/local/bin",
-   "/usr/local/sbin",
-   "/usr/local/etc",
-   "/usr/local/lib",
-   "/usr/local/games",
-   "/usr/local/games/bin",
-   "/usr/local/emacs/etc",
-   "/usr/local/TeX/bin",
-   "/usr/local/tex/bin",
-   "/usr/local/bin/X11",
+	"/usr/X11R6/bin",
+	"/usr/X386/bin",
+	"/usr/bin/X11",
+	"/usr/X11/bin",
+	"/usr/X11R5/bin",
 
-   "/usr/contrib",
-   "/usr/hosts",
-   "/usr/include",
+	"/usr/local/bin",
+	"/usr/local/sbin",
+	"/usr/local/etc",
+	"/usr/local/lib",
+	"/usr/local/games",
+	"/usr/local/games/bin",
+	"/usr/local/emacs/etc",
+	"/usr/local/TeX/bin",
+	"/usr/local/tex/bin",
+	"/usr/local/bin/X11",
 
-   "/usr/g++-include",
+	"/usr/contrib",
+	"/usr/hosts",
+	"/usr/include",
 
-   "/usr/ucb",
-   "/usr/old",
-   "/usr/new",
-   "/usr/local",
-   "/usr/libexec",
-   "/usr/share",
+	"/usr/g++-include",
 
-   "/opt/*/bin",
+	"/usr/ucb",
+	"/usr/old",
+	"/usr/new",
+	"/usr/local",
+	"/usr/libexec",
+	"/usr/share",
 
+	"/opt/*/bin",
 	0
 };
 
@@ -121,7 +112,7 @@ static char *mandirs[] = {
 	0
 };
 
-static char *srcdirs[]  = {
+static char *srcdirs[] = {
 	"/usr/src/*",
 	"/usr/src/lib/libc/*",
 	"/usr/src/lib/libc/net/*",
@@ -131,32 +122,244 @@ static char *srcdirs[]  = {
 	0
 };
 
-char	sflag = 1;
-char	bflag = 1;
-char	mflag = 1;
-char	**Sflag;
-int	Scnt;
-char	**Bflag;
-int	Bcnt;
-char	**Mflag;
-int	Mcnt;
-char	uflag;
+static char sflag = 1, bflag = 1, mflag = 1, uflag;
+static char **Sflag, **Bflag, **Mflag;
+static int Scnt, Bcnt, Mcnt, count, print;
+
+static void __attribute__ ((__noreturn__)) usage(FILE * out)
+{
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out,
+	      _(" %s [options] file\n"), program_invocation_short_name);
+
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -f <file>  define search scope\n"
+		" -b         search only binaries\n"
+		" -B <dirs>  define binaries lookup path\n"
+		" -m         search only manual paths\n"
+		" -M <dirs>  define man lookup path\n"
+		" -s         search only sources path\n"
+		" -S <dirs>  define sources lookup path\n"
+		" -u         search from unusual enties\n"
+		" -V         output version information and exit\n"
+		" -h         display this help and exit\n\n"), out);
+
+	fputs(_("See how to use file and dirs arguments from whereis(1) manual.\n"), out);
+	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
+static int
+itsit(char *cp, char *dp)
+{
+	int i = strlen(dp);
+
+	if (dp[0] == 's' && dp[1] == '.' && itsit(cp, dp + 2))
+		return 1;
+	if (!strcmp(dp + i - 2, ".Z"))
+		i -= 2;
+	else if (!strcmp(dp + i - 3, ".gz"))
+		i -= 3;
+	else if (!strcmp(dp + i - 4, ".bz2"))
+		i -= 4;
+	while (*cp && *dp && *cp == *dp)
+		cp++, dp++, i--;
+	if (*cp == 0 && *dp == 0)
+		return 1;
+	while (isdigit(*dp))
+		dp++;
+	if (*cp == 0 && *dp++ == '.') {
+		--i;
+		while (i > 0 && *dp)
+			if (--i, *dp++ == '.')
+				return (*dp++ == 'C' && *dp++ == 0);
+		return 1;
+	}
+	return 0;
+}
+
+static void
+findin(char *dir, char *cp)
+{
+	DIR *dirp;
+	struct dirent *dp;
+	char *d, *dd;
+	size_t l;
+	char dirbuf[1024];
+	struct stat statbuf;
+
+	dd = strchr(dir, '*');
+	if (!dd) {
+		dirp = opendir(dir);
+		if (dirp == NULL)
+			return;
+		while ((dp = readdir(dirp)) != NULL) {
+			if (itsit(cp, dp->d_name)) {
+				count++;
+				if (print)
+					printf(" %s/%s", dir, dp->d_name);
+			}
+		}
+		closedir(dirp);
+		return;
+	}
+
+	l = strlen(dir);
+	if (l < sizeof(dirbuf)) {
+		/* refuse excessively long names */
+		strcpy(dirbuf, dir);
+		d = strchr(dirbuf, '*');
+		*d = 0;
+		dirp = opendir(dirbuf);
+		if (dirp == NULL)
+			return;
+		while ((dp = readdir(dirp)) != NULL) {
+			if (!strcmp(dp->d_name, ".") ||
+			    !strcmp(dp->d_name, ".."))
+				continue;
+			if (strlen(dp->d_name) + l > sizeof(dirbuf))
+				continue;
+			sprintf(d, "%s", dp->d_name);
+			if (stat(dirbuf, &statbuf))
+				continue;
+			if (!S_ISDIR(statbuf.st_mode))
+				continue;
+			strcat(d, dd + 1);
+			findin(dirbuf, cp);
+		}
+		closedir(dirp);
+	}
+	return;
+
+}
+
+static void
+findv(char **dirv, int dirc, char *cp)
+{
+	while (dirc > 0)
+		findin(*dirv++, cp), dirc--;
+}
+
+static void
+looksrc(char *cp)
+{
+	if (Sflag == 0)
+		findv(srcdirs, ARRAY_SIZE(srcdirs)-1, cp);
+	else
+		findv(Sflag, Scnt, cp);
+}
+
+static void
+lookbin(char *cp)
+{
+	if (Bflag == 0)
+		findv(bindirs, ARRAY_SIZE(bindirs)-1, cp);
+	else
+		findv(Bflag, Bcnt, cp);
+}
+
+static void
+lookman(char *cp)
+{
+	if (Mflag == 0)
+		findv(mandirs, ARRAY_SIZE(mandirs)-1, cp);
+	else
+		findv(Mflag, Mcnt, cp);
+}
+
+static void
+getlist(int *argcp, char ***argvp, char ***flagp, int *cntp)
+{
+	(*argvp)++;
+	*flagp = *argvp;
+	*cntp = 0;
+	for ((*argcp)--; *argcp > 0 && (*argvp)[0][0] != '-'; (*argcp)--)
+		(*cntp)++, (*argvp)++;
+	(*argcp)++;
+	(*argvp)--;
+}
+
+static void
+zerof()
+{
+	if (sflag && bflag && mflag)
+		sflag = bflag = mflag = 0;
+}
+
+static int
+print_again(char *cp)
+{
+	if (print)
+		printf("%s:", cp);
+	if (sflag) {
+		looksrc(cp);
+		if (uflag && print == 0 && count != 1) {
+			print = 1;
+			return 1;
+		}
+	}
+	count = 0;
+	if (bflag) {
+		lookbin(cp);
+		if (uflag && print == 0 && count != 1) {
+			print = 1;
+			return 1;
+		}
+	}
+	count = 0;
+	if (mflag) {
+		lookman(cp);
+		if (uflag && print == 0 && count != 1) {
+			print = 1;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static void
+lookup(char *cp)
+{
+	register char *dp;
+
+	for (dp = cp; *dp; dp++)
+		continue;
+	for (; dp > cp; dp--) {
+		if (*dp == '.') {
+			*dp = 0;
+			break;
+		}
+	}
+	for (dp = cp; *dp; dp++)
+		if (*dp == '/')
+			cp = dp + 1;
+	if (uflag) {
+		print = 0;
+		count = 0;
+	} else
+		print = 1;
+
+	while (print_again(cp))
+		/* all in print_again() */ ;
+
+	if (print)
+		printf("\n");
+}
+
 /*
  * whereis name
  * look for source, documentation and binaries
  */
 int
-main(int argc, char **argv) {
+main(int argc, char **argv)
+{
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
 	argc--, argv++;
-	if (argc == 0) {
-usage:
-		fprintf(stderr, _("whereis [ -sbmu ] [ -SBM dir ... -f ] name...\n"));
-		exit(1);
-	}
+	if (argc == 0)
+		usage(stderr);
+
 	do
 		if (argv[0][0] == '-') {
 			register char *cp = argv[0] + 1;
@@ -195,202 +398,19 @@ usage:
 				zerof();
 				mflag++;
 				continue;
-
+			case 'V':
+				printf(_("%s from %s\n"),
+					program_invocation_short_name,
+					PACKAGE_STRING);
+				return EXIT_SUCCESS;
+			case 'h':
+				usage(stdout);
 			default:
-				goto usage;
+				usage(stderr);
 			}
 			argv++;
 		} else
 			lookup(*argv++);
 	while (--argc > 0);
-	return 0;
-}
-
-void
-getlist(int *argcp, char ***argvp, char ***flagp, int *cntp) {
-	(*argvp)++;
-	*flagp = *argvp;
-	*cntp = 0;
-	for ((*argcp)--; *argcp > 0 && (*argvp)[0][0] != '-'; (*argcp)--)
-		(*cntp)++, (*argvp)++;
-	(*argcp)++;
-	(*argvp)--;
-}
-
-
-void
-zerof()
-{
-	if (sflag && bflag && mflag)
-		sflag = bflag = mflag = 0;
-}
-
-int	count;
-int	print;
-
-void
-lookup(char *cp) {
-	register char *dp;
-
-	for (dp = cp; *dp; dp++)
-		continue;
-	for (; dp > cp; dp--) {
-		if (*dp == '.') {
-			*dp = 0;
-			break;
-		}
-	}
-	for (dp = cp; *dp; dp++)
-		if (*dp == '/')
-			cp = dp + 1;
-	if (uflag) {
-		print = 0;
-		count = 0;
-	} else
-		print = 1;
-again:
-	if (print)
-		printf("%s:", cp);
-	if (sflag) {
-		looksrc(cp);
-		if (uflag && print == 0 && count != 1) {
-			print = 1;
-			goto again;
-		}
-	}
-	count = 0;
-	if (bflag) {
-		lookbin(cp);
-		if (uflag && print == 0 && count != 1) {
-			print = 1;
-			goto again;
-		}
-	}
-	count = 0;
-	if (mflag) {
-		lookman(cp);
-		if (uflag && print == 0 && count != 1) {
-			print = 1;
-			goto again;
-		}
-	}
-	if (print)
-		printf("\n");
-}
-
-void
-looksrc(char *cp) {
-	if (Sflag == 0) {
-		find(srcdirs, cp);
-	} else
-		findv(Sflag, Scnt, cp);
-}
-
-void
-lookbin(char *cp) {
-	if (Bflag == 0)
-		find(bindirs, cp);
-	else
-		findv(Bflag, Bcnt, cp);
-}
-
-void
-lookman(char *cp) {
-	if (Mflag == 0) {
-		find(mandirs, cp);
-	} else
-		findv(Mflag, Mcnt, cp);
-}
-
-void
-findv(char **dirv, int dirc, char *cp) {
-	while (dirc > 0)
-		findin(*dirv++, cp), dirc--;
-}
-
-void
-find(char **dirs, char *cp) {
-	while (*dirs)
-		findin(*dirs++, cp);
-}
-
-void
-findin(char *dir, char *cp) {
-	DIR *dirp;
-	struct dirent *dp;
-	char *d, *dd;
-	int l;
-	char dirbuf[1024];
-	struct stat statbuf;
-
-	dd = strchr(dir, '*');
-	if (!dd)
-		goto noglob;
-
-	l = strlen(dir);
-	if (l < sizeof(dirbuf)) {	/* refuse excessively long names */
-		strcpy (dirbuf, dir);
-		d = strchr(dirbuf, '*');
-		*d = 0;
-		dirp = opendir(dirbuf);
-		if (dirp == NULL)
-			return;
-		while ((dp = readdir(dirp)) != NULL) {
-			if (!strcmp(dp->d_name, ".") ||
-			    !strcmp(dp->d_name, ".."))
-				continue;
-			if (strlen(dp->d_name) + l > sizeof(dirbuf))
-				continue;
-			sprintf(d, "%s", dp->d_name);
-			if (stat(dirbuf, &statbuf))
-				continue;
-			if (!S_ISDIR(statbuf.st_mode))
-				continue;
-			strcat(d, dd+1);
-			findin(dirbuf, cp);
-		}
-		closedir(dirp);
-	}
-	return;
-
-    noglob:
-	dirp = opendir(dir);
-	if (dirp == NULL)
-		return;
-	while ((dp = readdir(dirp)) != NULL) {
-		if (itsit(cp, dp->d_name)) {
-			count++;
-			if (print)
-				printf(" %s/%s", dir, dp->d_name);
-		}
-	}
-	closedir(dirp);
-}
-
-int
-itsit(char *cp, char *dp) {
-	int i = strlen(dp);
-
-	if (dp[0] == 's' && dp[1] == '.' && itsit(cp, dp+2))
-		return (1);
-	if (!strcmp(dp+i-2, ".Z"))
-		i -= 2;
-	else if (!strcmp(dp+i-3, ".gz"))
-		i -= 3;
-	else if (!strcmp(dp+i-4, ".bz2"))
-		i -= 4;
-	while (*cp && *dp && *cp == *dp)
-		cp++, dp++, i--;
-	if (*cp == 0 && *dp == 0)
-		return (1);
-	while (isdigit(*dp))
-		dp++;
-	if (*cp == 0 && *dp++ == '.') {
-		--i;
-		while (i > 0 && *dp)
-			if (--i, *dp++ == '.')
-				return (*dp++ == 'C' && *dp++ == 0);
-		return (1);
-	}
-	return (0);
+	return EXIT_SUCCESS;
 }

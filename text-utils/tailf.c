@@ -29,19 +29,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <malloc.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
-#include <err.h>
+#include <getopt.h>
 #ifdef HAVE_INOTIFY_INIT
 #include <sys/inotify.h>
 #endif
+
 #include "nls.h"
+#include "xalloc.h"
 #include "usleep.h"
+#include "strutils.h"
+#include "c.h"
 
 #define DEFAULT_LINES  10
 
@@ -57,7 +60,7 @@ tailf(const char *filename, int lines)
 	if (!(str = fopen(filename, "r")))
 		err(EXIT_FAILURE, _("cannot open \"%s\" for read"), filename);
 
-	buf = malloc(lines * BUFSIZ);
+	buf = xmalloc((lines ? lines : 1) * BUFSIZ);
 	p = buf;
 	while (fgets(p, BUFSIZ, str)) {
 		if (++tail >= lines) {
@@ -88,8 +91,10 @@ roll_file(const char *filename, off_t *size)
 	char buf[BUFSIZ];
 	int fd;
 	struct stat st;
+	off_t pos;
 
-	if (!(fd = open(filename, O_RDONLY)))
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
 		err(EXIT_FAILURE, _("cannot open \"%s\" for read"), filename);
 
 	if (fstat(fd, &st) == -1)
@@ -111,8 +116,16 @@ roll_file(const char *filename, off_t *size)
 		}
 		fflush(stdout);
 	}
+
+	pos = lseek(fd, 0, SEEK_CUR);
+
+	/* If we've successfully read something, use the file position, this
+	 * avoids data duplication. If we read nothing or hit an error, reset
+	 * to the reported size, this handles truncated files.
+	 */
+	*size = (pos != -1 && pos != *size) ? pos : st.st_size;
+
 	close(fd);
-	*size = st.st_size;
 }
 
 static void
@@ -178,10 +191,49 @@ watch_file_inotify(const char *filename, off_t *size)
 
 #endif /* HAVE_INOTIFY_INIT */
 
+static void __attribute__ ((__noreturn__)) usage(FILE *out)
+{
+	fprintf(out,
+		_("\nUsage:\n"
+		  " %s [option] file\n"),
+		program_invocation_short_name);
+
+	fprintf(out, _(
+		"\nOptions:\n"
+		" -n, --lines NUMBER  output the last NUMBER lines\n"
+		" -NUMBER             same as `-n NUMBER'\n"
+		" -V, --version       output version information and exit\n"
+		" -h, --help          display this help and exit\n\n"));
+
+	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
+/* parses -N option */
+long old_style_option(int *argc, char **argv)
+{
+	int i = 1, nargs = *argc;
+	long lines = -1;
+
+	while(i < nargs) {
+		if (argv[i][0] == '-' && isdigit(argv[i][1])) {
+			lines = strtol_or_err(argv[i] + 1,
+					_("failed to parse number of lines"));
+			nargs--;
+			if (nargs - i)
+				memmove(argv + i, argv + i + 1,
+						sizeof(char *) * (nargs - i));
+		} else
+			i++;
+	}
+	*argc = nargs;
+	return lines;
+}
+
 int main(int argc, char **argv)
 {
 	const char *filename;
-	int lines = DEFAULT_LINES;
+	long lines;
+	int ch;
 	struct stat st;
 	off_t size = 0;
 
@@ -189,27 +241,38 @@ int main(int argc, char **argv)
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
-	argc--;
-	argv++;
+	static const struct option longopts[] = {
+		{ "lines",   required_argument, 0, 'n' },
+		{ "version", no_argument,	0, 'V' },
+		{ "help",    no_argument,	0, 'h' },
+		{ NULL,      0, 0, 0 }
+	};
 
-	for (; argc > 0 && argv[0][0] == '-'; argc--, argv++) {
-		if (!strcmp(*argv, "-n") || !strcmp(*argv, "--lines")) {
-			argc--;	argv++;
-			if (argc > 0 && (lines = atoi(argv[0])) <= 0)
-				errx(EXIT_FAILURE, _("invalid number of lines"));
+	lines = old_style_option(&argc, argv);
+	if (lines < 0)
+		lines = DEFAULT_LINES;
+
+	while ((ch = getopt_long(argc, argv, "n:N:Vh", longopts, NULL)) != -1)
+		switch((char)ch) {
+		case 'n':
+		case 'N':
+			lines = strtol_or_err(optarg,
+					_("failed to parse number of lines"));
+			break;
+		case 'V':
+			printf(_("%s from %s\n"), program_invocation_short_name,
+						  PACKAGE_STRING);
+			exit(EXIT_SUCCESS);
+		case 'h':
+			usage(stdout);
+		default:
+			usage(stderr);
 		}
-		else if (isdigit(argv[0][1])) {
-			if ((lines = atoi(*argv + 1)) <= 0)
-				errx(EXIT_FAILURE, _("invalid number of lines"));
-		}
-		else
-			errx(EXIT_FAILURE, _("invalid option"));
-	}
 
-	if (argc != 1)
-		errx(EXIT_FAILURE, _("usage: tailf [-n N | -N] logfile"));
+	if (argc == optind)
+		errx(EXIT_FAILURE, _("no input file specified"));
 
-	filename = argv[0];
+	filename = argv[optind];
 
 	if (stat(filename, &st) != 0)
 		err(EXIT_FAILURE, _("cannot stat \"%s\""), filename);

@@ -38,8 +38,13 @@ host_triplet = @host@
 DIST_COMMON = $(dist_noinst_DATA) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/config/include-Makefile.am
 noinst_PROGRAMS = test_blkdev$(EXEEXT) test_ismounted$(EXEEXT) \
-	test_wholedisk$(EXEEXT)
-@LINUX_TRUE@am__append_1 = linux_version.c
+	test_wholedisk$(EXEEXT) test_mangle$(EXEEXT) test_tt$(EXEEXT) \
+	test_canonicalize$(EXEEXT) test_strutils$(EXEEXT) \
+	test_procutils$(EXEEXT) test_at$(EXEEXT) $(am__EXEEXT_1) \
+	$(am__EXEEXT_2)
+@HAVE_CPU_SET_T_TRUE@@LINUX_TRUE@am__append_1 = test_cpuset
+@LINUX_TRUE@am__append_2 = test_sysfs test_loopdev
+@LINUX_TRUE@am__append_3 = linux_version.c
 subdir = lib
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
@@ -57,18 +62,72 @@ mkinstalldirs = $(SHELL) $(top_srcdir)/config/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+@HAVE_CPU_SET_T_TRUE@@LINUX_TRUE@am__EXEEXT_1 = test_cpuset$(EXEEXT)
+@LINUX_TRUE@am__EXEEXT_2 = test_sysfs$(EXEEXT) test_loopdev$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
+am_test_at_OBJECTS = test_at-at.$(OBJEXT)
+test_at_OBJECTS = $(am_test_at_OBJECTS)
+test_at_LDADD = $(LDADD)
+AM_V_lt = $(am__v_lt_$(V))
+am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
+am__v_lt_0 = --silent
+test_at_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_at_CFLAGS) \
+	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 am__test_blkdev_SOURCES_DIST = blkdev.c linux_version.c
 @LINUX_TRUE@am__objects_1 = linux_version.$(OBJEXT)
 am_test_blkdev_OBJECTS = blkdev.$(OBJEXT) $(am__objects_1)
 test_blkdev_OBJECTS = $(am_test_blkdev_OBJECTS)
 test_blkdev_LDADD = $(LDADD)
-AM_V_lt = $(am__v_lt_$(V))
-am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
-am__v_lt_0 = --silent
+am_test_canonicalize_OBJECTS =  \
+	test_canonicalize-canonicalize.$(OBJEXT)
+test_canonicalize_OBJECTS = $(am_test_canonicalize_OBJECTS)
+test_canonicalize_LDADD = $(LDADD)
+test_canonicalize_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(test_canonicalize_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
+	-o $@
+am__test_cpuset_SOURCES_DIST = cpuset.c
+@LINUX_TRUE@am_test_cpuset_OBJECTS = cpuset.$(OBJEXT)
+test_cpuset_OBJECTS = $(am_test_cpuset_OBJECTS)
+test_cpuset_LDADD = $(LDADD)
 am_test_ismounted_OBJECTS = ismounted.$(OBJEXT)
 test_ismounted_OBJECTS = $(am_test_ismounted_OBJECTS)
 test_ismounted_LDADD = $(LDADD)
+am__test_loopdev_SOURCES_DIST = loopdev.c sysfs.c at.c \
+	$(top_srcdir)/lib/linux_version.c \
+	$(top_srcdir)/lib/canonicalize.c
+@LINUX_TRUE@am__objects_2 = test_loopdev-sysfs.$(OBJEXT) \
+@LINUX_TRUE@	test_loopdev-at.$(OBJEXT)
+@LINUX_TRUE@am_test_loopdev_OBJECTS = test_loopdev-loopdev.$(OBJEXT) \
+@LINUX_TRUE@	$(am__objects_2) \
+@LINUX_TRUE@	test_loopdev-linux_version.$(OBJEXT) \
+@LINUX_TRUE@	test_loopdev-canonicalize.$(OBJEXT)
+test_loopdev_OBJECTS = $(am_test_loopdev_OBJECTS)
+test_loopdev_LDADD = $(LDADD)
+test_loopdev_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_loopdev_CFLAGS) \
+	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+am_test_mangle_OBJECTS = mangle.$(OBJEXT)
+test_mangle_OBJECTS = $(am_test_mangle_OBJECTS)
+test_mangle_LDADD = $(LDADD)
+am_test_procutils_OBJECTS = procutils.$(OBJEXT)
+test_procutils_OBJECTS = $(am_test_procutils_OBJECTS)
+test_procutils_LDADD = $(LDADD)
+am_test_strutils_OBJECTS = strutils.$(OBJEXT)
+test_strutils_OBJECTS = $(am_test_strutils_OBJECTS)
+test_strutils_LDADD = $(LDADD)
+am__test_sysfs_SOURCES_DIST = sysfs.c at.c
+@LINUX_TRUE@am_test_sysfs_OBJECTS = test_sysfs-sysfs.$(OBJEXT) \
+@LINUX_TRUE@	test_sysfs-at.$(OBJEXT)
+test_sysfs_OBJECTS = $(am_test_sysfs_OBJECTS)
+test_sysfs_LDADD = $(LDADD)
+test_sysfs_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_sysfs_CFLAGS) \
+	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+am_test_tt_OBJECTS = tt.$(OBJEXT) mbsalign.$(OBJEXT)
+test_tt_OBJECTS = $(am_test_tt_OBJECTS)
+test_tt_LDADD = $(LDADD)
 am_test_wholedisk_OBJECTS = wholedisk.$(OBJEXT)
 test_wholedisk_OBJECTS = $(am_test_wholedisk_OBJECTS)
 test_wholedisk_LDADD = $(LDADD)
@@ -98,10 +157,18 @@ am__v_CCLD_0 = @echo "  CCLD  " $@;
 AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
-SOURCES = $(test_blkdev_SOURCES) $(test_ismounted_SOURCES) \
-	$(test_wholedisk_SOURCES)
-DIST_SOURCES = $(am__test_blkdev_SOURCES_DIST) \
-	$(test_ismounted_SOURCES) $(test_wholedisk_SOURCES)
+SOURCES = $(test_at_SOURCES) $(test_blkdev_SOURCES) \
+	$(test_canonicalize_SOURCES) $(test_cpuset_SOURCES) \
+	$(test_ismounted_SOURCES) $(test_loopdev_SOURCES) \
+	$(test_mangle_SOURCES) $(test_procutils_SOURCES) \
+	$(test_strutils_SOURCES) $(test_sysfs_SOURCES) \
+	$(test_tt_SOURCES) $(test_wholedisk_SOURCES)
+DIST_SOURCES = $(test_at_SOURCES) $(am__test_blkdev_SOURCES_DIST) \
+	$(test_canonicalize_SOURCES) $(am__test_cpuset_SOURCES_DIST) \
+	$(test_ismounted_SOURCES) $(am__test_loopdev_SOURCES_DIST) \
+	$(test_mangle_SOURCES) $(test_procutils_SOURCES) \
+	$(test_strutils_SOURCES) $(am__test_sysfs_SOURCES_DIST) \
+	$(test_tt_SOURCES) $(test_wholedisk_SOURCES)
 DATA = $(dist_noinst_DATA)
 ETAGS = etags
 CTAGS = ctags
@@ -114,9 +181,6 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BLKID_CFLAGS = @BLKID_CFLAGS@
-BLKID_LIBS = @BLKID_LIBS@
-BLKID_LIBS_STATIC = @BLKID_LIBS_STATIC@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
@@ -125,6 +189,7 @@ CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DLLTOOL = @DLLTOOL@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -150,6 +215,8 @@ LIBBLKID_VERSION = @LIBBLKID_VERSION@
 LIBBLKID_VERSION_INFO = @LIBBLKID_VERSION_INFO@
 LIBICONV = @LIBICONV@
 LIBINTL = @LIBINTL@
+LIBMOUNT_VERSION = @LIBMOUNT_VERSION@
+LIBMOUNT_VERSION_INFO = @LIBMOUNT_VERSION_INFO@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -161,6 +228,7 @@ LTLIBICONV = @LTLIBICONV@
 LTLIBINTL = @LTLIBINTL@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
+MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
 MKINSTALLDIRS = @MKINSTALLDIRS@
 MSGFMT = @MSGFMT@
@@ -182,6 +250,8 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PERL = @PERL@
 PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
 RANLIB = @RANLIB@
 SED = @SED@
@@ -189,12 +259,11 @@ SELINUX_LIBS = @SELINUX_LIBS@
 SELINUX_LIBS_STATIC = @SELINUX_LIBS_STATIC@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SOCKET_LIBS = @SOCKET_LIBS@
 STRIP = @STRIP@
 SUID_CFLAGS = @SUID_CFLAGS@
 SUID_LDFLAGS = @SUID_LDFLAGS@
 USE_NLS = @USE_NLS@
-UUID_CFLAGS = @UUID_CFLAGS@
-UUID_LIBS = @UUID_LIBS@
 VERSION = @VERSION@
 XGETTEXT = @XGETTEXT@
 XSLTPROC = @XSLTPROC@
@@ -202,6 +271,7 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
+ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
@@ -235,7 +305,6 @@ libdirname = @libdirname@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -269,20 +338,45 @@ dist_noinst_DATA = $(dist_man_MANS)
 # Paths to in-tree libraries (use ul_ prefix to avoid possible collisions)
 #
 # blkid
-ul_libblkid_srcdir = $(top_srcdir)/shlibs/blkid/src
-ul_libblkid_builddir = $(top_builddir)/shlibs/blkid/src
-ul_libblkid_la = $(top_builddir)/shlibs/blkid/src/libblkid.la
+ul_libblkid_srcdir = $(top_srcdir)/libblkid/src
+ul_libblkid_builddir = $(top_builddir)/libblkid/src
+ul_libblkid_la = $(top_builddir)/libblkid/src/libblkid.la
 
 # blkid.h is generated by ./configure script and stored in build directory
 ul_libblkid_incdir = $(ul_libblkid_builddir)
 
 # uuid
-ul_libuuid_srcdir = $(top_srcdir)/shlibs/uuid/src
-ul_libuuid_builddir = $(top_builddir)/shlibs/uuid/src
-ul_libuuid_la = $(top_builddir)/shlibs/uuid/src/libuuid.la
-test_blkdev_SOURCES = blkdev.c $(am__append_1)
+ul_libuuid_srcdir = $(top_srcdir)/libuuid/src
+ul_libuuid_builddir = $(top_builddir)/libuuid/src
+ul_libuuid_la = $(top_builddir)/libuuid/src/libuuid.la
+
+# mount
+ul_libmount_srcdir = $(top_srcdir)/libmount/src
+ul_libmount_builddir = $(top_builddir)/libmount/src
+ul_libmount_la = $(top_builddir)/libmount/src/libmount.la
+
+# libmount.h is generated by ./configure script and stored in build directory
+ul_libmount_incdir = $(ul_libmount_builddir)
+test_blkdev_SOURCES = blkdev.c $(am__append_3)
 test_ismounted_SOURCES = ismounted.c
 test_wholedisk_SOURCES = wholedisk.c
+test_mangle_SOURCES = mangle.c
+test_at_SOURCES = at.c
+test_at_CFLAGS = -DTEST_PROGRAM_AT
+test_strutils_SOURCES = strutils.c
+test_procutils_SOURCES = procutils.c
+@LINUX_TRUE@test_cpuset_SOURCES = cpuset.c
+@LINUX_TRUE@test_sysfs_SOURCES = sysfs.c at.c
+@LINUX_TRUE@test_sysfs_CFLAGS = -DTEST_PROGRAM_SYSFS
+@LINUX_TRUE@test_loopdev_SOURCES = loopdev.c \
+@LINUX_TRUE@		       $(test_sysfs_SOURCES) \
+@LINUX_TRUE@		       $(top_srcdir)/lib/linux_version.c \
+@LINUX_TRUE@		       $(top_srcdir)/lib/canonicalize.c
+
+@LINUX_TRUE@test_loopdev_CFLAGS = -DTEST_PROGRAM_LOOPDEV
+test_tt_SOURCES = tt.c $(top_srcdir)/lib/mbsalign.c
+test_canonicalize_SOURCES = canonicalize.c
+test_canonicalize_CFLAGS = -DTEST_PROGRAM_CANONICALIZE
 all: all-am
 
 .SUFFIXES:
@@ -326,12 +420,39 @@ clean-noinstPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
+test_at$(EXEEXT): $(test_at_OBJECTS) $(test_at_DEPENDENCIES) 
+	@rm -f test_at$(EXEEXT)
+	$(AM_V_CCLD)$(test_at_LINK) $(test_at_OBJECTS) $(test_at_LDADD) $(LIBS)
 test_blkdev$(EXEEXT): $(test_blkdev_OBJECTS) $(test_blkdev_DEPENDENCIES) 
 	@rm -f test_blkdev$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(test_blkdev_OBJECTS) $(test_blkdev_LDADD) $(LIBS)
+test_canonicalize$(EXEEXT): $(test_canonicalize_OBJECTS) $(test_canonicalize_DEPENDENCIES) 
+	@rm -f test_canonicalize$(EXEEXT)
+	$(AM_V_CCLD)$(test_canonicalize_LINK) $(test_canonicalize_OBJECTS) $(test_canonicalize_LDADD) $(LIBS)
+test_cpuset$(EXEEXT): $(test_cpuset_OBJECTS) $(test_cpuset_DEPENDENCIES) 
+	@rm -f test_cpuset$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_cpuset_OBJECTS) $(test_cpuset_LDADD) $(LIBS)
 test_ismounted$(EXEEXT): $(test_ismounted_OBJECTS) $(test_ismounted_DEPENDENCIES) 
 	@rm -f test_ismounted$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(test_ismounted_OBJECTS) $(test_ismounted_LDADD) $(LIBS)
+test_loopdev$(EXEEXT): $(test_loopdev_OBJECTS) $(test_loopdev_DEPENDENCIES) 
+	@rm -f test_loopdev$(EXEEXT)
+	$(AM_V_CCLD)$(test_loopdev_LINK) $(test_loopdev_OBJECTS) $(test_loopdev_LDADD) $(LIBS)
+test_mangle$(EXEEXT): $(test_mangle_OBJECTS) $(test_mangle_DEPENDENCIES) 
+	@rm -f test_mangle$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_mangle_OBJECTS) $(test_mangle_LDADD) $(LIBS)
+test_procutils$(EXEEXT): $(test_procutils_OBJECTS) $(test_procutils_DEPENDENCIES) 
+	@rm -f test_procutils$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_procutils_OBJECTS) $(test_procutils_LDADD) $(LIBS)
+test_strutils$(EXEEXT): $(test_strutils_OBJECTS) $(test_strutils_DEPENDENCIES) 
+	@rm -f test_strutils$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_strutils_OBJECTS) $(test_strutils_LDADD) $(LIBS)
+test_sysfs$(EXEEXT): $(test_sysfs_OBJECTS) $(test_sysfs_DEPENDENCIES) 
+	@rm -f test_sysfs$(EXEEXT)
+	$(AM_V_CCLD)$(test_sysfs_LINK) $(test_sysfs_OBJECTS) $(test_sysfs_LDADD) $(LIBS)
+test_tt$(EXEEXT): $(test_tt_OBJECTS) $(test_tt_DEPENDENCIES) 
+	@rm -f test_tt$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_tt_OBJECTS) $(test_tt_LDADD) $(LIBS)
 test_wholedisk$(EXEEXT): $(test_wholedisk_OBJECTS) $(test_wholedisk_DEPENDENCIES) 
 	@rm -f test_wholedisk$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(test_wholedisk_OBJECTS) $(test_wholedisk_LDADD) $(LIBS)
@@ -343,8 +464,23 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blkdev.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cpuset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ismounted.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/linux_version.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mangle.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mbsalign.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/procutils.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strutils.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_at-at.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_canonicalize-canonicalize.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_loopdev-at.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_loopdev-canonicalize.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_loopdev-linux_version.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_loopdev-loopdev.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_loopdev-sysfs.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_sysfs-at.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_sysfs-sysfs.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wholedisk.Po@am__quote@
 
 .c.o:
@@ -370,6 +506,166 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
+
+test_at-at.o: at.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_at_CFLAGS) $(CFLAGS) -MT test_at-at.o -MD -MP -MF $(DEPDIR)/test_at-at.Tpo -c -o test_at-at.o `test -f 'at.c' || echo '$(srcdir)/'`at.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_at-at.Tpo $(DEPDIR)/test_at-at.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='at.c' object='test_at-at.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_at_CFLAGS) $(CFLAGS) -c -o test_at-at.o `test -f 'at.c' || echo '$(srcdir)/'`at.c
+
+test_at-at.obj: at.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_at_CFLAGS) $(CFLAGS) -MT test_at-at.obj -MD -MP -MF $(DEPDIR)/test_at-at.Tpo -c -o test_at-at.obj `if test -f 'at.c'; then $(CYGPATH_W) 'at.c'; else $(CYGPATH_W) '$(srcdir)/at.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_at-at.Tpo $(DEPDIR)/test_at-at.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='at.c' object='test_at-at.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_at_CFLAGS) $(CFLAGS) -c -o test_at-at.obj `if test -f 'at.c'; then $(CYGPATH_W) 'at.c'; else $(CYGPATH_W) '$(srcdir)/at.c'; fi`
+
+test_canonicalize-canonicalize.o: canonicalize.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_canonicalize_CFLAGS) $(CFLAGS) -MT test_canonicalize-canonicalize.o -MD -MP -MF $(DEPDIR)/test_canonicalize-canonicalize.Tpo -c -o test_canonicalize-canonicalize.o `test -f 'canonicalize.c' || echo '$(srcdir)/'`canonicalize.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_canonicalize-canonicalize.Tpo $(DEPDIR)/test_canonicalize-canonicalize.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='canonicalize.c' object='test_canonicalize-canonicalize.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_canonicalize_CFLAGS) $(CFLAGS) -c -o test_canonicalize-canonicalize.o `test -f 'canonicalize.c' || echo '$(srcdir)/'`canonicalize.c
+
+test_canonicalize-canonicalize.obj: canonicalize.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_canonicalize_CFLAGS) $(CFLAGS) -MT test_canonicalize-canonicalize.obj -MD -MP -MF $(DEPDIR)/test_canonicalize-canonicalize.Tpo -c -o test_canonicalize-canonicalize.obj `if test -f 'canonicalize.c'; then $(CYGPATH_W) 'canonicalize.c'; else $(CYGPATH_W) '$(srcdir)/canonicalize.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_canonicalize-canonicalize.Tpo $(DEPDIR)/test_canonicalize-canonicalize.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='canonicalize.c' object='test_canonicalize-canonicalize.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_canonicalize_CFLAGS) $(CFLAGS) -c -o test_canonicalize-canonicalize.obj `if test -f 'canonicalize.c'; then $(CYGPATH_W) 'canonicalize.c'; else $(CYGPATH_W) '$(srcdir)/canonicalize.c'; fi`
+
+test_loopdev-loopdev.o: loopdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-loopdev.o -MD -MP -MF $(DEPDIR)/test_loopdev-loopdev.Tpo -c -o test_loopdev-loopdev.o `test -f 'loopdev.c' || echo '$(srcdir)/'`loopdev.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-loopdev.Tpo $(DEPDIR)/test_loopdev-loopdev.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='loopdev.c' object='test_loopdev-loopdev.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-loopdev.o `test -f 'loopdev.c' || echo '$(srcdir)/'`loopdev.c
+
+test_loopdev-loopdev.obj: loopdev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-loopdev.obj -MD -MP -MF $(DEPDIR)/test_loopdev-loopdev.Tpo -c -o test_loopdev-loopdev.obj `if test -f 'loopdev.c'; then $(CYGPATH_W) 'loopdev.c'; else $(CYGPATH_W) '$(srcdir)/loopdev.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-loopdev.Tpo $(DEPDIR)/test_loopdev-loopdev.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='loopdev.c' object='test_loopdev-loopdev.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-loopdev.obj `if test -f 'loopdev.c'; then $(CYGPATH_W) 'loopdev.c'; else $(CYGPATH_W) '$(srcdir)/loopdev.c'; fi`
+
+test_loopdev-sysfs.o: sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-sysfs.o -MD -MP -MF $(DEPDIR)/test_loopdev-sysfs.Tpo -c -o test_loopdev-sysfs.o `test -f 'sysfs.c' || echo '$(srcdir)/'`sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-sysfs.Tpo $(DEPDIR)/test_loopdev-sysfs.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='sysfs.c' object='test_loopdev-sysfs.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-sysfs.o `test -f 'sysfs.c' || echo '$(srcdir)/'`sysfs.c
+
+test_loopdev-sysfs.obj: sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-sysfs.obj -MD -MP -MF $(DEPDIR)/test_loopdev-sysfs.Tpo -c -o test_loopdev-sysfs.obj `if test -f 'sysfs.c'; then $(CYGPATH_W) 'sysfs.c'; else $(CYGPATH_W) '$(srcdir)/sysfs.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-sysfs.Tpo $(DEPDIR)/test_loopdev-sysfs.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='sysfs.c' object='test_loopdev-sysfs.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-sysfs.obj `if test -f 'sysfs.c'; then $(CYGPATH_W) 'sysfs.c'; else $(CYGPATH_W) '$(srcdir)/sysfs.c'; fi`
+
+test_loopdev-at.o: at.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-at.o -MD -MP -MF $(DEPDIR)/test_loopdev-at.Tpo -c -o test_loopdev-at.o `test -f 'at.c' || echo '$(srcdir)/'`at.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-at.Tpo $(DEPDIR)/test_loopdev-at.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='at.c' object='test_loopdev-at.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-at.o `test -f 'at.c' || echo '$(srcdir)/'`at.c
+
+test_loopdev-at.obj: at.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-at.obj -MD -MP -MF $(DEPDIR)/test_loopdev-at.Tpo -c -o test_loopdev-at.obj `if test -f 'at.c'; then $(CYGPATH_W) 'at.c'; else $(CYGPATH_W) '$(srcdir)/at.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-at.Tpo $(DEPDIR)/test_loopdev-at.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='at.c' object='test_loopdev-at.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-at.obj `if test -f 'at.c'; then $(CYGPATH_W) 'at.c'; else $(CYGPATH_W) '$(srcdir)/at.c'; fi`
+
+test_loopdev-linux_version.o: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-linux_version.o -MD -MP -MF $(DEPDIR)/test_loopdev-linux_version.Tpo -c -o test_loopdev-linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-linux_version.Tpo $(DEPDIR)/test_loopdev-linux_version.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='test_loopdev-linux_version.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-linux_version.o `test -f '$(top_srcdir)/lib/linux_version.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/linux_version.c
+
+test_loopdev-linux_version.obj: $(top_srcdir)/lib/linux_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-linux_version.obj -MD -MP -MF $(DEPDIR)/test_loopdev-linux_version.Tpo -c -o test_loopdev-linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-linux_version.Tpo $(DEPDIR)/test_loopdev-linux_version.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/linux_version.c' object='test_loopdev-linux_version.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-linux_version.obj `if test -f '$(top_srcdir)/lib/linux_version.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/linux_version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/linux_version.c'; fi`
+
+test_loopdev-canonicalize.o: $(top_srcdir)/lib/canonicalize.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-canonicalize.o -MD -MP -MF $(DEPDIR)/test_loopdev-canonicalize.Tpo -c -o test_loopdev-canonicalize.o `test -f '$(top_srcdir)/lib/canonicalize.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/canonicalize.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-canonicalize.Tpo $(DEPDIR)/test_loopdev-canonicalize.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/canonicalize.c' object='test_loopdev-canonicalize.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-canonicalize.o `test -f '$(top_srcdir)/lib/canonicalize.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/canonicalize.c
+
+test_loopdev-canonicalize.obj: $(top_srcdir)/lib/canonicalize.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -MT test_loopdev-canonicalize.obj -MD -MP -MF $(DEPDIR)/test_loopdev-canonicalize.Tpo -c -o test_loopdev-canonicalize.obj `if test -f '$(top_srcdir)/lib/canonicalize.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/canonicalize.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/canonicalize.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_loopdev-canonicalize.Tpo $(DEPDIR)/test_loopdev-canonicalize.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/canonicalize.c' object='test_loopdev-canonicalize.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_loopdev_CFLAGS) $(CFLAGS) -c -o test_loopdev-canonicalize.obj `if test -f '$(top_srcdir)/lib/canonicalize.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/canonicalize.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/canonicalize.c'; fi`
+
+test_sysfs-sysfs.o: sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_sysfs_CFLAGS) $(CFLAGS) -MT test_sysfs-sysfs.o -MD -MP -MF $(DEPDIR)/test_sysfs-sysfs.Tpo -c -o test_sysfs-sysfs.o `test -f 'sysfs.c' || echo '$(srcdir)/'`sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_sysfs-sysfs.Tpo $(DEPDIR)/test_sysfs-sysfs.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='sysfs.c' object='test_sysfs-sysfs.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_sysfs_CFLAGS) $(CFLAGS) -c -o test_sysfs-sysfs.o `test -f 'sysfs.c' || echo '$(srcdir)/'`sysfs.c
+
+test_sysfs-sysfs.obj: sysfs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_sysfs_CFLAGS) $(CFLAGS) -MT test_sysfs-sysfs.obj -MD -MP -MF $(DEPDIR)/test_sysfs-sysfs.Tpo -c -o test_sysfs-sysfs.obj `if test -f 'sysfs.c'; then $(CYGPATH_W) 'sysfs.c'; else $(CYGPATH_W) '$(srcdir)/sysfs.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_sysfs-sysfs.Tpo $(DEPDIR)/test_sysfs-sysfs.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='sysfs.c' object='test_sysfs-sysfs.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_sysfs_CFLAGS) $(CFLAGS) -c -o test_sysfs-sysfs.obj `if test -f 'sysfs.c'; then $(CYGPATH_W) 'sysfs.c'; else $(CYGPATH_W) '$(srcdir)/sysfs.c'; fi`
+
+test_sysfs-at.o: at.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_sysfs_CFLAGS) $(CFLAGS) -MT test_sysfs-at.o -MD -MP -MF $(DEPDIR)/test_sysfs-at.Tpo -c -o test_sysfs-at.o `test -f 'at.c' || echo '$(srcdir)/'`at.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_sysfs-at.Tpo $(DEPDIR)/test_sysfs-at.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='at.c' object='test_sysfs-at.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_sysfs_CFLAGS) $(CFLAGS) -c -o test_sysfs-at.o `test -f 'at.c' || echo '$(srcdir)/'`at.c
+
+test_sysfs-at.obj: at.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_sysfs_CFLAGS) $(CFLAGS) -MT test_sysfs-at.obj -MD -MP -MF $(DEPDIR)/test_sysfs-at.Tpo -c -o test_sysfs-at.obj `if test -f 'at.c'; then $(CYGPATH_W) 'at.c'; else $(CYGPATH_W) '$(srcdir)/at.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_sysfs-at.Tpo $(DEPDIR)/test_sysfs-at.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='at.c' object='test_sysfs-at.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_sysfs_CFLAGS) $(CFLAGS) -c -o test_sysfs-at.obj `if test -f 'at.c'; then $(CYGPATH_W) 'at.c'; else $(CYGPATH_W) '$(srcdir)/at.c'; fi`
+
+mbsalign.o: $(top_srcdir)/lib/mbsalign.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mbsalign.o -MD -MP -MF $(DEPDIR)/mbsalign.Tpo -c -o mbsalign.o `test -f '$(top_srcdir)/lib/mbsalign.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/mbsalign.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mbsalign.Tpo $(DEPDIR)/mbsalign.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/mbsalign.c' object='mbsalign.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mbsalign.o `test -f '$(top_srcdir)/lib/mbsalign.c' || echo '$(srcdir)/'`$(top_srcdir)/lib/mbsalign.c
+
+mbsalign.obj: $(top_srcdir)/lib/mbsalign.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mbsalign.obj -MD -MP -MF $(DEPDIR)/mbsalign.Tpo -c -o mbsalign.obj `if test -f '$(top_srcdir)/lib/mbsalign.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/mbsalign.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/mbsalign.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mbsalign.Tpo $(DEPDIR)/mbsalign.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(top_srcdir)/lib/mbsalign.c' object='mbsalign.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mbsalign.obj `if test -f '$(top_srcdir)/lib/mbsalign.c'; then $(CYGPATH_W) '$(top_srcdir)/lib/mbsalign.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/lib/mbsalign.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -580,6 +876,9 @@ $(ul_libblkid_la):
 
 $(ul_libuuid_la):
 	$(MAKE) -C $(ul_libuuid_builddir)
+
+$(ul_libmount_la):
+	$(MAKE) -C $(ul_libmount_builddir)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

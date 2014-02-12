@@ -18,7 +18,6 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <err.h>
 #include <errno.h>
 #include <getopt.h>
 #include <sched.h>
@@ -27,6 +26,7 @@
 #include <unistd.h>
 
 #include "nls.h"
+#include "c.h"
 
 #ifndef CLONE_NEWSNS
 # define CLONE_NEWNS 0x00020000
@@ -54,28 +54,30 @@ static void usage(int status)
 {
 	FILE *out = status == EXIT_SUCCESS ? stdout : stderr;
 
-	fprintf(out, _("Usage: %s [options] <program> [args...]\n"),
-		program_invocation_short_name);
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out,
+	      _(" %s [options] <program> [args...]\n"),	program_invocation_short_name);
 
-	fputs(_("Run program with some namespaces unshared from parent\n\n"
-		"  -h, --help        usage information (this)\n"
-		"  -m, --mount       unshare mounts namespace\n"
-		"  -u, --uts         unshare UTS namespace (hostname etc)\n"
-		"  -i, --ipc         unshare System V IPC namespace\n"
-		"  -n, --net         unshare network namespace\n"), out);
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -h, --help        usage information (this)\n"
+		" -m, --mount       unshare mounts namespace\n"
+		" -u, --uts         unshare UTS namespace (hostname etc)\n"
+		" -i, --ipc         unshare System V IPC namespace\n"
+		" -n, --net         unshare network namespace\n"), out);
 
-	fprintf(out, _("\nFor more information see unshare(1).\n"));
+	fputs(_("\nFor more information see unshare(1).\n"), out);
 	exit(status);
 }
 
 int main(int argc, char *argv[])
 {
-	struct option longopts[] = {
+	static const struct option longopts[] = {
 		{ "help", no_argument, 0, 'h' },
 		{ "mount", no_argument, 0, 'm' },
 		{ "uts", no_argument, 0, 'u' },
 		{ "ipc", no_argument, 0, 'i' },
 		{ "net", no_argument, 0, 'n' },
+		{ NULL, 0, 0, 0 }
 	};
 
 	int unshare_flags = 0;
@@ -112,6 +114,13 @@ int main(int argc, char *argv[])
 
 	if(-1 == unshare(unshare_flags))
 		err(EXIT_FAILURE, _("unshare failed"));
+
+	/* drop potential root euid/egid if we had been setuid'd */
+	if (setgid(getgid()) < 0)
+		err(EXIT_FAILURE, _("cannot set group id"));
+
+	if (setuid(getuid()) < 0)
+		err(EXIT_FAILURE, _("cannot set user id"));
 
 	execvp(argv[optind], argv + optind);
 

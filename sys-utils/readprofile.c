@@ -49,6 +49,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+
+#include "xalloc.h"
 #include "nls.h"
 
 #define S_LEN 128
@@ -59,22 +61,6 @@ static char *prgname;
 static char defaultmap[]="/boot/System.map";
 static char defaultpro[]="/proc/profile";
 static char optstring[]="M:m:np:itvarVbs";
-
-static void *
-xmalloc (size_t size) {
-	void *t;
-
-	if (size == 0)
-		return NULL;
-
-	t = malloc (size);
-	if (t == NULL) {
-		fprintf(stderr, _("out of memory"));
-		exit(1);
-	}
-
-	return t;
-}
 
 static FILE *
 myopen(char *name, char *mode, int *flag) {
@@ -136,7 +122,7 @@ main(int argc, char **argv) {
 	FILE *map;
 	int proFd;
 	char *mapFile, *proFile, *mult=0;
-	unsigned long len=0, indx=1;
+	size_t len=0, indx=1;
 	unsigned long long add0=0;
 	unsigned int step;
 	unsigned int *buf, total, fn_len;
@@ -144,6 +130,7 @@ main(int argc, char **argv) {
 	char fn_name[S_LEN], next_name[S_LEN];   /* current and next name */
 	char mode[8];
 	int c;
+	ssize_t rc;
 	int optAll=0, optInfo=0, optReset=0, optVerbose=0, optNative=0;
 	int optBins=0, optSub=0;
 	char mapline[S_LEN];
@@ -242,12 +229,10 @@ main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if (!(buf=malloc(len))) {
-		fprintf(stderr,"%s: malloc(): %s\n", prgname, strerror(errno));
-		exit(1);
-	}
+	buf = xmalloc(len);
 
-	if (read(proFd,buf,len) != len) {
+	rc = read(proFd,buf,len);
+	if (rc < 0 || (size_t) rc != len) {
 		fprintf(stderr,"%s: %s: %s\n",prgname,proFile,strerror(errno));
 		exit(1);
 	}
@@ -255,8 +240,9 @@ main(int argc, char **argv) {
 
 	if (!optNative) {
 		int entries = len/sizeof(*buf);
-		int big = 0,small = 0,i;
+		int big = 0,small = 0;
 		unsigned *p;
+		size_t i;
 
 		for (p = buf+1; p < buf+entries; p++) {
 			if (*p & ~0U << (sizeof(*buf)*4))
@@ -340,8 +326,10 @@ main(int argc, char **argv) {
 			done = 1;
 		else {
 			/* ignore any LEADING (before a '[tT]' symbol is found)
-			   Absolute symbols */
-			if ((*mode == 'A' || *mode == '?') && total == 0)
+			   Absolute symbols and __init_end because some
+			   architectures place it before .text section */
+			if ((*mode == 'A' || *mode == '?')
+			    && (total == 0 || !strcmp(next_name, "__init_end")))
 				continue;
 			if (*mode != 'T' && *mode != 't' &&
 			    *mode != 'W' && *mode != 'w')

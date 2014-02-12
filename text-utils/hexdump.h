@@ -46,7 +46,7 @@ typedef struct _pr {
 #define	F_U		0x100		/* %_u */
 #define	F_UINT		0x200		/* %[ouXx] */
 #define	F_TEXT		0x400		/* no conversions */
-	u_int flags;			/* flag values */
+	unsigned int flags;		/* flag values */
 	int bcnt;			/* byte count */
 	char *cchar;			/* conversion character */
 	char *fmt;			/* printf format */
@@ -58,7 +58,7 @@ typedef struct _fu {
 	struct _pr *nextpr;		/* next print unit */
 #define	F_IGNORE	0x01		/* %_A */
 #define	F_SETREP	0x02		/* rep count set, not default */
-	u_int flags;			/* flag values */
+	unsigned int flags;		/* flag values */
 	int reps;			/* repetition count */
 	int bcnt;			/* byte count */
 	char *fmt;			/* format string */
@@ -81,16 +81,13 @@ extern off_t skip;                      /* bytes to skip */
 enum _vflag { ALL, DUP, FIRST, WAIT };	/* -v values */
 extern enum _vflag vflag;
 
-void *emalloc(int);
 int size(FS *);
 void add(const char *);
 void rewrite(FS *);
 void addfile(char *);
 void display(void);
-void nomem(void);
-void usage(void);
+void __attribute__((__noreturn__)) usage(FILE *out);
 void conv_c(PR *, u_char *);
 void conv_u(PR *, u_char *);
 int  next(char **);
-void oldsyntax(int, char ***);
 void newsyntax(int, char ***);

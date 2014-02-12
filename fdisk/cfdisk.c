@@ -64,26 +64,47 @@
 #include <errno.h>
 #include <getopt.h>
 #include <fcntl.h>
+
+#ifdef HAVE_SLANG_H
+#include <slang.h>
+#elif defined(HAVE_SLANG_SLANG_H)
+#include <slang/slang.h>
+#endif
+
 #ifdef HAVE_SLCURSES_H
 #include <slcurses.h>
 #elif defined(HAVE_SLANG_SLCURSES_H)
 #include <slang/slcurses.h>
+#elif defined(HAVE_NCURSESW_NCURSES_H) && defined(HAVE_WIDECHAR)
+#include <ncursesw/ncurses.h>
 #elif defined(HAVE_NCURSES_H)
 #include <ncurses.h>
 #elif defined(HAVE_NCURSES_NCURSES_H)
 #include <ncurses/ncurses.h>
 #endif
+
 #include <signal.h>
 #include <math.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
+#ifdef HAVE_LIBBLKID
+#include <blkid.h>
+#endif
+
+#ifdef HAVE_WIDECHAR
+#include <wctype.h>
+#endif
+
 #include "nls.h"
+#include "rpmatch.h"
 #include "blkdev.h"
-#include "xstrncpy.h"
+#include "strutils.h"
 #include "common.h"
 #include "gpt.h"
+#include "mbsalign.h"
+#include "widechar.h"
 
 #ifdef __GNU__
 #define DEFAULT_DEVICE "/dev/hd0"
@@ -130,16 +151,10 @@
 
 #define COL_ID_WIDTH 25
 
-#define CR '\015'
 #define ESC '\033'
 #define DEL '\177'
 #define BELL '\007'
-#define TAB '\011'
 #define REDRAWKEY '\014'	/* ^L */
-#define UPKEY '\020'		/* ^P */
-#define UPKEYVI '\153'		/* k */
-#define DOWNKEY '\016'		/* ^N */
-#define DOWNKEYVI '\152'	/* j */
 
 /* Display units */
 #define GIGABYTES 1
@@ -177,7 +192,6 @@ int heads = 0;
 int sectors = 0;
 long long cylinders = 0;
 int cylinder_size = 0;		/* heads * sectors */
-long long total_size = 0;	/* actual_size rounded down */
 long long actual_size = 0;	/* (in 512-byte sectors) - set using ioctl */
 				/* explicitly given user values */
 int user_heads = 0, user_sectors = 0;
@@ -221,11 +235,6 @@ set_hsc_end(struct partition *p, long long sector) {
 
 #define is_extended(x)	((x) == DOS_EXTENDED || (x) == WIN98_EXTENDED || \
 			 (x) == LINUX_EXTENDED)
-
-#define is_dos_partition(x) ((x) == 1 || (x) == 4 || (x) == 6)
-#define may_have_dos_label(x) (is_dos_partition(x) \
-   || (x) == 7 || (x) == 0xb || (x) == 0xc || (x) == 0xe \
-   || (x) == 0x11 || (x) == 0x14 || (x) == 0x16 || (x) == 0x17)
 
 /* start_sect and nr_sects are stored little endian on all machines */
 /* moreover, they are not aligned correctly */
@@ -289,7 +298,7 @@ typedef struct {
     char volume_label[LABELSZ+1];
 #define OSTYPESZ 8
     char ostype[OSTYPESZ+1];
-#define FSTYPESZ 8
+#define FSTYPESZ 12
     char fstype[FSTYPESZ+1];
 } partition_info;
 
@@ -378,29 +387,9 @@ partition_type_text(int i) {
 	 return _("Unusable");
     else if (p_info[i].id == FREE_SPACE)
 	 return _("Free Space");
-    else if (p_info[i].id == LINUX) {
-	 if (!strcmp(p_info[i].fstype, "ext2"))
-	      return _("Linux ext2");
-	 else if (!strcmp(p_info[i].fstype, "ext3"))
-	      return _("Linux ext3");
-	 else if (!strcmp(p_info[i].fstype, "xfs"))
-	      return _("Linux XFS");
-	 else if (!strcmp(p_info[i].fstype, "jfs"))
-	      return _("Linux JFS");
-	 else if (!strcmp(p_info[i].fstype, "reiserfs"))
-	      return _("Linux ReiserFS");
-	 else
-	      return _("Linux");
-    } else if (p_info[i].id == OS2_OR_NTFS) {
-	 if (!strncmp(p_info[i].fstype, "HPFS", 4))
-	      return _("OS/2 HPFS");
-	 else if (!strncmp(p_info[i].ostype, "OS2", 3))
-	      return _("OS/2 IFS");
-	 else if (!p_info[i].ostype)
-	      return p_info[i].ostype;
-	 else
-	      return _("NTFS");
-    } else
+    else if (*p_info[i].fstype)
+	 return p_info[i].fstype;
+    else
 	 return _(partition_type_name(p_info[i].id));
 }
 
@@ -426,12 +415,18 @@ fdexit(int ret) {
     exit(ret);
 }
 
+/*
+ * Note that @len is size of @str buffer.
+ *
+ * Returns number of read bytes (without \0).
+ */
 static int
 get_string(char *str, int len, char *def) {
-    unsigned char c;
-    int i = 0;
+    size_t cells = 0;
+    ssize_t i = 0;
     int x, y;
     int use_def = FALSE;
+    wint_t c;
 
     getyx(stdscr, y, x);
     clrtoeol();
@@ -445,7 +440,22 @@ get_string(char *str, int len, char *def) {
     }
 
     refresh();
-    while ((c = getch()) != '\n' && c != CR) {
+
+    while (1) {
+#if !defined(HAVE_SLCURSES_H) && !defined(HAVE_SLANG_SLCURSES_H) && \
+    defined(HAVE_LIBNCURSESW) && defined(HAVE_WIDECHAR)
+	if (get_wch(&c) == ERR) {
+#else
+	if ((c = getch()) == ERR) {
+#endif
+		if (!isatty(STDIN_FILENO))
+			exit(2);
+		else
+			break;
+	}
+	if (c == '\r' || c == '\n' || c == KEY_ENTER)
+		break;
+
 	switch (c) {
 	case ESC:
 	    move(y, x);
@@ -454,10 +464,14 @@ get_string(char *str, int len, char *def) {
 	    return GS_ESCAPE;
 	case DEL:
 	case '\b':
+	case KEY_BACKSPACE:
 	    if (i > 0) {
-		str[--i] = 0;
-		mvaddch(y, x+i, ' ');
-		move(y, x+i);
+		cells--;
+		i = mbs_truncate(str, &cells);
+		if (i < 0)
+			return GS_ESCAPE;
+		mvaddch(y, x + cells, ' ');
+		move(y, x + cells);
 	    } else if (use_def) {
 		clrtoeol();
 		use_def = FALSE;
@@ -465,15 +479,39 @@ get_string(char *str, int len, char *def) {
 		putchar(BELL);
 	    break;
 	default:
-	    if (i < len && isprint(c)) {
-		mvaddch(y, x+i, c);
+#if defined(HAVE_LIBNCURSESW) && defined(HAVE_WIDECHAR)
+	    if (i + 1 < len && iswprint(c)) {
+		wchar_t wc = (wchar_t) c;
+		char s[MB_CUR_MAX + 1];
+		int  sz = wctomb(s, wc);
+
+		if (sz + i < len) {
+			s[sz] = '\0';
+			mvaddnstr(y, x + cells, s, sz);
+			if (use_def) {
+			    clrtoeol();
+			    use_def = FALSE;
+			}
+			memcpy(str + i, s, sz);
+			i += sz;
+			str[i] = '\0';
+			cells += wcwidth(wc);
+		} else
+			putchar(BELL);
+	    }
+#else
+	    if (i + 1 < len && isprint(c)) {
+	        mvaddch(y, x + cells, c);
 		if (use_def) {
 		    clrtoeol();
 		    use_def = FALSE;
 		}
 		str[i++] = c;
 		str[i] = 0;
-	    } else
+		cells++;
+	    }
+#endif
+	    else
 		putchar(BELL);
 	}
 	refresh();
@@ -520,11 +558,11 @@ fatal(char *s, int ret) {
 	 char *str = xmalloc(strlen(s) + strlen(err1) + strlen(err2) + 10);
 
 	 sprintf(str, "%s: %s", err1, s);
-	 if (strlen(str) > COLS)
+	 if (strlen(str) > (size_t) COLS)
 	     str[COLS] = 0;
 	 mvaddstr(WARNING_START, (COLS-strlen(str))/2, str);
 	 sprintf(str, "%s", err2);
-	 if (strlen(str) > COLS)
+	 if (strlen(str) > (size_t) COLS)
 	     str[COLS] = 0;
 	 mvaddstr(WARNING_START+1, (COLS-strlen(str))/2, str);
 	 putchar(BELL); /* CTRL-G */
@@ -538,7 +576,7 @@ fatal(char *s, int ret) {
 }
 
 static void
-die(int dummy) {
+die(int dummy __attribute__((__unused__))) {
     die_x(0);
 }
 
@@ -574,171 +612,36 @@ write_sector(unsigned char *buffer, long long sect_num) {
 	fatal(_("Cannot write disk drive"), 2);
 }
 
+#ifdef HAVE_LIBBLKID
 static void
-dos_copy_to_info(char *to, int tosz, char *from, int fromsz) {
-     int i;
-
-     for(i=0; i<tosz && i<fromsz && isascii(from[i]); i++)
-	  to[i] = from[i];
-     to[i] = 0;
-}
-
-static void
-get_dos_label(int i) {
-	char sector[128];
-#define DOS_OSTYPE_OFFSET 3
-#define DOS_LABEL_OFFSET 43
-#define DOS_FSTYPE_OFFSET 54
-#define DOS_OSTYPE_SZ 8
-#define DOS_LABEL_SZ 11
-#define DOS_FSTYPE_SZ 8
-	long long offset;
+get_fsinfo(int i)
+{
+	blkid_probe pr;
+	blkid_loff_t offset, size;
+	const char *data;
 
 	offset = (p_info[i].first_sector + p_info[i].offset) * SECTOR_SIZE;
-	if (lseek(fd, offset, SEEK_SET) == offset
-	    && read(fd, &sector, sizeof(sector)) == sizeof(sector)) {
-		dos_copy_to_info(p_info[i].ostype, OSTYPESZ,
-				 sector+DOS_OSTYPE_OFFSET, DOS_OSTYPE_SZ);
-		dos_copy_to_info(p_info[i].volume_label, LABELSZ,
-				 sector+DOS_LABEL_OFFSET, DOS_LABEL_SZ);
-		dos_copy_to_info(p_info[i].fstype, FSTYPESZ,
-				 sector+DOS_FSTYPE_OFFSET, DOS_FSTYPE_SZ);
-	}
+	size = (p_info[i].last_sector - p_info[i].first_sector + 1) * SECTOR_SIZE;
+	pr = blkid_new_probe();
+	if (!pr)
+		return;
+	blkid_probe_enable_superblocks(pr, 1);
+	blkid_probe_set_superblocks_flags(pr, BLKID_SUBLKS_LABEL |
+					      BLKID_SUBLKS_TYPE);
+	if (blkid_probe_set_device(pr, fd, offset, size))
+		goto done;
+	if (blkid_do_safeprobe(pr))
+		goto done;
+
+	if (!blkid_probe_lookup_value(pr, "TYPE", &data, 0))
+		strncpy(p_info[i].fstype, data, FSTYPESZ);
+
+	if (!blkid_probe_lookup_value(pr, "LABEL", &data, 0))
+		strncpy(p_info[i].volume_label, data, LABELSZ);
+done:
+	blkid_free_probe(pr);
 }
-
-#define REISERFS_SUPER_MAGIC_STRING "ReIsErFs"
-#define REISER2FS_SUPER_MAGIC_STRING "ReIsEr2Fs"
-struct reiserfs_super_block {
-	char s_dummy0[52];
-	char s_magic [10];
-	char s_dummy1[38];
-	u_char s_label[16];
-};
-#define REISERFSLABELSZ sizeof(reiserfsb.s_label)
-
-static int
-has_reiserfs_magic_string(const struct reiserfs_super_block *rs, int *is_3_6) {
-	if (!strncmp(rs->s_magic, REISERFS_SUPER_MAGIC_STRING,
-		     strlen(REISERFS_SUPER_MAGIC_STRING))) {
-		*is_3_6 = 0;
-		return 1;
-	}
-	if (!strncmp(rs->s_magic, REISER2FS_SUPER_MAGIC_STRING,
-		     strlen(REISER2FS_SUPER_MAGIC_STRING))) {
-		*is_3_6 = 1;
-		return 1;
-	}
-	return 0;
-}
-
-static void
-get_linux_label(int i) {
-
-#define EXT2LABELSZ 16
-#define EXT2_SUPER_MAGIC 0xEF53
-#define EXT3_FEATURE_COMPAT_HAS_JOURNAL 0x0004
-	struct ext2_super_block {
-		char  s_dummy0[56];
-		unsigned char  s_magic[2];
-		char  s_dummy1[34];
-		unsigned char  s_feature_compat[4];
-		char  s_dummy2[24];
-		char  s_volume_name[EXT2LABELSZ];
-		char  s_last_mounted[64];
-		char  s_dummy3[824];
-	} e2fsb;
-
-#define REISERFS_DISK_OFFSET_IN_BYTES (64 * 1024)
-	struct reiserfs_super_block reiserfsb;
-	int reiserfs_is_3_6;
-
-#define JFS_SUPER1_OFF	0x8000
-#define JFS_MAGIC	"JFS1"
-#define JFSLABELSZ	16
-	struct jfs_super_block {
-		char    s_magic[4];
-		u_char  s_version[4];
-		u_char  s_dummy1[93];
-		char    s_fpack[11];
-		u_char  s_dummy2[24];
-		u_char  s_uuid[16];
-		char    s_label[JFSLABELSZ];
-	} jfsb;
-
-#define XFS_SUPER_MAGIC "XFSB"
-#define XFSLABELSZ 12
-	struct xfs_super_block {
-		unsigned char   s_magic[4];
-		unsigned char   s_dummy0[104];
-		unsigned char   s_fname[XFSLABELSZ];
-		unsigned char   s_dummy1[904];
-	} xfsb;
-
-	char *label;
-	long long offset;
-	int j;
-
-	offset = (p_info[i].first_sector + p_info[i].offset) * SECTOR_SIZE
-		+ 1024;
-	if (lseek(fd, offset, SEEK_SET) == offset
-	    && read(fd, &e2fsb, sizeof(e2fsb)) == sizeof(e2fsb)
-	    && e2fsb.s_magic[0] + (e2fsb.s_magic[1]<<8) == EXT2_SUPER_MAGIC) {
-		label = e2fsb.s_volume_name;
-		for(j=0; j<EXT2LABELSZ && j<LABELSZ && isprint(label[j]); j++)
-			p_info[i].volume_label[j] = label[j];
-		p_info[i].volume_label[j] = 0;
-		/* ext2 or ext3? */
-		if (e2fsb.s_feature_compat[0]&EXT3_FEATURE_COMPAT_HAS_JOURNAL)
-			strncpy(p_info[i].fstype, "ext3", FSTYPESZ);
-		else
-			strncpy(p_info[i].fstype, "ext2", FSTYPESZ);
-		return;
-	}
-
-	offset = (p_info[i].first_sector + p_info[i].offset) * SECTOR_SIZE + 0;
-	if (lseek(fd, offset, SEEK_SET) == offset
-	    && read(fd, &xfsb, sizeof(xfsb)) == sizeof(xfsb)
-	    && !strncmp((char *) xfsb.s_magic, XFS_SUPER_MAGIC, 4)) {
-		label = (char *) xfsb.s_fname;
-		for(j=0; j<XFSLABELSZ && j<LABELSZ && isprint(label[j]); j++)
-			p_info[i].volume_label[j] = label[j];
-		p_info[i].volume_label[j] = 0;
-		strncpy(p_info[i].fstype, "xfs", FSTYPESZ);
-		return;
-	}
-
-	/* jfs? */
-	offset = (p_info[i].first_sector + p_info[i].offset) * SECTOR_SIZE
-		+ JFS_SUPER1_OFF;
-	if (lseek(fd, offset, SEEK_SET) == offset
-	    && read(fd, &jfsb, sizeof(jfsb)) == sizeof(jfsb)
-	    && !strncmp(jfsb.s_magic, JFS_MAGIC, strlen(JFS_MAGIC))) {
-		label = jfsb.s_label;
-		for(j=0; j<JFSLABELSZ && j<LABELSZ && isprint(label[j]); j++)
-			p_info[i].volume_label[j] = label[j];
-		p_info[i].volume_label[j] = 0;
-		strncpy(p_info[i].fstype, "jfs", FSTYPESZ);
-		return;
-	}
-
-	/* reiserfs? */
-	offset = (p_info[i].first_sector + p_info[i].offset) * SECTOR_SIZE
-		+ REISERFS_DISK_OFFSET_IN_BYTES;
-	if (lseek(fd, offset, SEEK_SET) == offset
-	    && read(fd, &reiserfsb, sizeof(reiserfsb)) == sizeof(reiserfsb)
-	    && has_reiserfs_magic_string(&reiserfsb, &reiserfs_is_3_6)) {
-		if (reiserfs_is_3_6) {
-			/* label only on version 3.6 onward */
-			label = (char *) reiserfsb.s_label;
-			for(j=0; j<REISERFSLABELSZ && j<LABELSZ &&
-				    isprint(label[j]); j++)
-				p_info[i].volume_label[j] = label[j];
-			p_info[i].volume_label[j] = 0;
-		}
-		strncpy(p_info[i].fstype, "reiserfs", FSTYPESZ);
-		return;
-	}
-}
+#endif
 
 static void
 check_part_info(void) {
@@ -879,7 +782,7 @@ del_part(int i) {
     if (i < num_parts - 1)
 	p_info[i].last_sector = p_info[i+1].first_sector - 1;
     else
-	p_info[i].last_sector = total_size - 1;
+	p_info[i].last_sector = actual_size - 1;
 
     p_info[i].offset = 0;
     p_info[i].flags = 0;
@@ -928,18 +831,13 @@ add_part(int num, int id, int flags, long long first, long long last,
 	return -1;
     }
 
-    if (first >= total_size) {
+    if (first >= actual_size) {
 	*errmsg = _("Partition begins after end-of-disk");
 	return -1;
     }
 
     if (last >= actual_size) {
 	*errmsg = _("Partition ends after end-of-disk");
-	return -1;
-    }
-
-    if (last >= total_size) {
-	*errmsg = _("Partition ends in the final partial cylinder");
 	return -1;
     }
 
@@ -1050,13 +948,11 @@ add_part(int num, int id, int flags, long long first, long long last,
     p_info[i].volume_label[0] = 0;
     p_info[i].fstype[0] = 0;
     p_info[i].ostype[0] = 0;
-    if (want_label) {
-	 if (may_have_dos_label(id))
-	      get_dos_label(i);
-	 else if (id == LINUX)
-	      get_linux_label(i);
-    }
 
+#ifdef HAVE_LIBBLKID
+    if (want_label)
+	 get_fsinfo(i);
+#endif
     check_part_info();
 
     return 0;
@@ -1105,17 +1001,11 @@ find_logical(int i) {
  */
 
 /* Constants for menuType parameter of menuSelect function */
-#define MENU_HORIZ 1
-#define MENU_VERT 2
 #define MENU_ACCEPT_OTHERS 4
 #define MENU_BUTTON 8
 /* Miscellenous constants */
 #define MENU_SPACING 2
 #define MENU_MAX_ITEMS 256 /* for simpleMenu function */
-#define MENU_UP 1
-#define MENU_DOWN 2
-#define MENU_RIGHT 3
-#define MENU_LEFT 4
 
 struct MenuItem
 {
@@ -1132,7 +1022,7 @@ struct MenuItem
 static int
 menuUpdate( int y, int x, struct MenuItem *menuItems, int itemLength,
 	    char *available, int menuType, int current ) {
-    int i, lmargin = x, ymargin = y;
+    int i, lmargin = x;
     char *mcd;
 
     /* Print available buttons */
@@ -1167,7 +1057,7 @@ menuUpdate( int y, int x, struct MenuItem *menuItems, int itemLength,
         if(lenName > itemLength || lenName >= sizeof(buff))
             print_warning(_("Menu item too long. Menu may look odd."));
 #endif
-	if (lenName >= sizeof(buff)) {	/* truncate ridiculously long string */
+	if ((size_t) lenName >= sizeof(buff)) {	/* truncate ridiculously long string */
 	    xstrncpy(buff, mi, sizeof(buff));
 	} else if (lenName >= itemLength) {
             snprintf(buff, sizeof(buff),
@@ -1184,18 +1074,6 @@ menuUpdate( int y, int x, struct MenuItem *menuItems, int itemLength,
         if( current == i ) /*attroff( A_REVERSE )*/ standend ();
 
         /* Calculate position for the next item */
-        if( menuType & MENU_VERT )
-        {
-            y += 1;
-            if( y >= WARNING_START )
-            {
-                y = ymargin;
-                x += itemLength + MENU_SPACING;
-                if( menuType & MENU_BUTTON ) x += 2;
-            }
-        }
-        else
-        {
             x += itemLength + MENU_SPACING;
             if( menuType & MENU_BUTTON ) x += 2;
             if( x > COLUMNS - lmargin - 12 )
@@ -1203,7 +1081,6 @@ menuUpdate( int y, int x, struct MenuItem *menuItems, int itemLength,
                 x = lmargin;
                 y ++ ;
             }
-        }
     }
 
     /* Print the description of selected item */
@@ -1220,16 +1097,13 @@ menuSelect( int y, int x, struct MenuItem *menuItems, int itemLength,
 	    char *available, int menuType, int menuDefault ) {
     int i, ylast = y, key = 0, current = menuDefault;
 
-    if( !( menuType & ( MENU_HORIZ | MENU_VERT ) ) ) {
-        print_warning(_("Menu without direction. Defaulting to horizontal."));
-        menuType |= MENU_HORIZ;
-    }
-
     /* Make sure that the current is one of the available items */
     while( !strchr(available, menuItems[current].key) ) {
         current ++ ;
         if( !menuItems[current].key ) current = 0;
     }
+
+    keypad(stdscr, TRUE);
 
     /* Repeat until allowable choice has been made */
     while( !key ) {
@@ -1238,6 +1112,10 @@ menuSelect( int y, int x, struct MenuItem *menuItems, int itemLength,
 			    menuType, current );
         refresh();
         key = getch();
+
+	if (key == ERR)
+		if (!isatty(STDIN_FILENO))
+			exit(2);
 
         /* Clear out all prompts and such */
         clear_warning();
@@ -1248,98 +1126,37 @@ menuSelect( int y, int x, struct MenuItem *menuItems, int itemLength,
         move( WARNING_START + 1, 0 );
         clrtoeol();
 
-        /* Cursor keys - possibly split by slow connection */
-        if( key == ESC ) {
-            /* Check whether this is a real ESC or one of extended keys */
-            /*nodelay(stdscr, TRUE);*/
-            key = getch();
-            /*nodelay(stdscr, FALSE);*/
-
-            if( key == /*ERR*/ ESC ) {
-                /* This is a real ESC */
-                key = ESC;
-            }
-            if(key == '[' || key == 'O') {
-                /* This is one extended keys */
-		key = getch();
-
-                switch(key) {
-                    case 'A': /* Up arrow */
-			key = MENU_UP;
-                        break;
-                    case 'B': /* Down arrow */
-                        key = MENU_DOWN;
-                        break;
-                    case 'C': /* Right arrow */
-                        key = MENU_RIGHT;
-                        break;
-                    case 'D': /* Left arrow */
-                    case 'Z': /* Shift Tab */
-                        key = MENU_LEFT;
-                        break;
-		    default:
-			key = 0;
-                }
-            }
-        }
-
-        /* Enter equals the keyboard shortcut of current menu item */
-        if (key == CR)
-            key = menuItems[current].key;
-
-	/* Give alternatives for arrow keys in case the window manager
-	   swallows these */
-	if (key == TAB)
-	    key = MENU_RIGHT;
-        if (key == UPKEY || key == UPKEYVI)	/* ^P or k */
-	    key = MENU_UP;
-	if (key == DOWNKEY || key == DOWNKEYVI)	/* ^N or j */
-	    key = MENU_DOWN;
-
-	if (key == MENU_UP) {
-	    if( menuType & MENU_VERT ) {
-                do {
-                    current -- ;
-                    if( current < 0 )
-			while( menuItems[current+1].key )
-			    current ++ ;
-                } while( !strchr( available, menuItems[current].key ));
-                key = 0;
-            }
-	}
-
-	if (key == MENU_DOWN) {
-            if( menuType & MENU_VERT ) {
-                do {
-                    current ++ ;
-		    if( !menuItems[current].key ) current = 0 ;
-		} while( !strchr( available, menuItems[current].key ));
-		key = 0;
-	    }
-	}
-
-	if (key == MENU_RIGHT) {
-	    if( menuType & MENU_HORIZ ) {
+	switch (key) {
+	case KEY_RIGHT:
+	case '\t':
+		/* Select next menu item */
 		do {
-		    current ++ ;
-		    if( !menuItems[current].key )
-			current = 0 ;
-		} while( !strchr( available, menuItems[current].key ));
+			current++;
+			if (!menuItems[current].key)
+				current = 0;
+		} while (!strchr(available, menuItems[current].key));
 		key = 0;
-	    }
-	}
-
-	if (key == MENU_LEFT) {
-	     if( menuType & MENU_HORIZ ) {
-		 do {
-		     current -- ;
-		     if( current < 0 ) {
-			 while( menuItems[current + 1].key )
-			      current ++ ;
-		     }
-		 } while( !strchr( available, menuItems[current].key ));
-		 key = 0;
-	     }
+		break;
+	case KEY_LEFT:
+#ifdef KEY_BTAB
+	case KEY_BTAB:	/* Back tab */
+#endif
+		/* Select previous menu item */
+		do {
+			current--;
+			if (current < 0) {
+				while (menuItems[current + 1].key)
+					current++;
+			}
+		} while (!strchr(available, menuItems[current].key));
+		key = 0;
+		break;
+	case KEY_ENTER:
+	case '\n':
+	case '\r':
+		/* Enter equals the keyboard shortcut of current menu item */
+		key = menuItems[current].key;
+		break;
 	}
 
         /* Should all keys to be accepted? */
@@ -1356,6 +1173,8 @@ menuSelect( int y, int x, struct MenuItem *menuItems, int itemLength,
             print_warning(_("Illegal key"));
         }
     }
+
+    keypad(stdscr, FALSE);
 
     /* Clear out prompts and such */
     clear_warning();
@@ -1381,7 +1200,7 @@ menuContinue(void) {
     };
 
     menuSelect(COMMAND_LINE_Y, COMMAND_LINE_X,
-	menuContinueBtn, 0, "c", MENU_HORIZ | MENU_ACCEPT_OTHERS, 0 );
+	menuContinueBtn, 0, "c", MENU_ACCEPT_OTHERS, 0 );
 }
 
 /* Function menuSelect takes way too many parameters  *
@@ -1400,7 +1219,7 @@ menuSimple(struct MenuItem *menuItems, int menuDefault) {
     }
     available[i] = 0;
     return menuSelect(COMMAND_LINE_Y, COMMAND_LINE_X, menuItems, itemLength,
-        available, MENU_HORIZ | MENU_BUTTON, menuDefault);
+        available, MENU_BUTTON, menuDefault);
 }
 
 /* End of command menu support code */
@@ -1545,17 +1364,12 @@ get_kernel_geometry(void) {
 
 static int
 said_yes(char answer) {
-#ifdef HAVE_RPMATCH
 	char reply[2];
-	int yn;
 
 	reply[0] = answer;
 	reply[1] = 0;
-	yn = rpmatch(reply);	/* 1: yes, 0: no, -1: ? */
-	if (yn >= 0)
-		return yn;
-#endif
-	return (answer == 'y' || answer == 'Y');
+
+	return (rpmatch(reply) == 1) ? 1 : 0;
 }
 
 static void
@@ -1637,8 +1451,7 @@ decide_on_geometry(void) {
     if (user_cylinders > 0)
 	    cylinders = user_cylinders;
 
-    total_size = cylinder_size*cylinders;
-    if (total_size > actual_size)
+    if (cylinder_size * cylinders > actual_size)
 	    print_warning(_("You specified more cylinders than fit on disk"));
 }
 
@@ -1646,7 +1459,7 @@ static void
 clear_p_info(void) {
     num_parts = 1;
     p_info[0].first_sector = 0;
-    p_info[0].last_sector = total_size - 1;
+    p_info[0].last_sector = actual_size - 1;
     p_info[0].offset = 0;
     p_info[0].flags = 0;
     p_info[0].id = FREE_SPACE;
@@ -1667,7 +1480,11 @@ fill_p_info(void) {
     unsigned long long llsectors;
     struct partition *p;
     partition_table buffer;
-    partition_info tmp_ext = { 0, 0, 0, 0, FREE_SPACE, PRIMARY };
+    partition_info tmp_ext;
+
+    memset(&tmp_ext, 0, sizeof tmp_ext);
+    tmp_ext.id = FREE_SPACE;
+    tmp_ext.num = PRIMARY;
 
     if ((fd = open(disk_device, O_RDWR)) < 0) {
 	 if ((fd = open(disk_device, O_RDONLY)) < 0)
@@ -1731,7 +1548,7 @@ fill_p_info(void) {
 			 ((bs <= sectors) ? bs : 0), 1, &errmsg)) {
 		    char *bad = _("Bad primary partition");
 		    char *msg = (char *) xmalloc(strlen(bad) + strlen(errmsg) + 30);
-		    sprintf(msg, "%s %d: %s", bad, i, errmsg);
+		    sprintf(msg, "%s %d: %s", bad, i + 1, errmsg);
 		    fatal(msg, 4);
 	    }
 	    if (is_extended(buffer.p.part[i].sys_ind))
@@ -1942,7 +1759,7 @@ static void
 fp_printf(FILE *fp, char *format, ...) {
     va_list args;
     char buf[1024];
-    int y, x;
+    int y, x __attribute__((unused));
 
     va_start(args, format);
     vsnprintf(buf, sizeof(buf), format, args);
@@ -2429,7 +2246,7 @@ change_geometry(void) {
     if (ret_val) {
 	long long disk_end;
 
-	disk_end = total_size-1;
+	disk_end = actual_size-1;
 
 	if (p_info[num_parts-1].last_sector > disk_end) {
 	    while (p_info[num_parts-1].first_sector > disk_end) {
@@ -2512,7 +2329,7 @@ change_id(int i) {
 
     sprintf(def, "%02X", new_id);
     mvaddstr(COMMAND_LINE_Y, COMMAND_LINE_X, _("Enter filesystem type: "));
-    if ((len = get_string(id, 2, def)) <= 0 && len != GS_DEFAULT)
+    if ((len = get_string(id, 3, def)) <= 0 && len != GS_DEFAULT)
 	return;
 
     if (len != GS_DEFAULT) {
@@ -2709,10 +2526,12 @@ draw_screen(void) {
     free(line);
 }
 
-static int
+static void
 draw_cursor(int move) {
-    if (move != 0 && (cur_part + move < 0 || cur_part + move >= num_parts))
-	return -1;
+    if (move != 0 && (cur_part + move < 0 || cur_part + move >= num_parts)) {
+	print_warning(_("No more partitions"));
+	return;
+    }
 
     if (arrow_cursor)
 	mvaddstr(DISK_TABLE_START + cur_part + 2
@@ -2734,14 +2553,12 @@ draw_cursor(int move) {
 	draw_partition(cur_part);
 	standend();
     }
-
-    return 0;
 }
 
 static void
 do_curses_fdisk(void) {
     int done = FALSE;
-    char command;
+    int command;
     int is_first_run = TRUE;
 
     static struct MenuItem menuMain[] = {
@@ -2780,20 +2597,20 @@ do_curses_fdisk(void) {
     while (!done) {
 	char *s;
 
-	(void)draw_cursor(0);
+	draw_cursor(0);
 
 	if (p_info[cur_part].id == FREE_SPACE) {
 	    s = ((opentype == O_RDWR) ? "hnpquW" : "hnpqu");
 	    command = menuSelect(COMMAND_LINE_Y, COMMAND_LINE_X, menuMain, 10,
-	        s, MENU_HORIZ | MENU_BUTTON | MENU_ACCEPT_OTHERS, 5);
+	        s, MENU_BUTTON | MENU_ACCEPT_OTHERS, 5);
 	} else if (p_info[cur_part].id > 0) {
 	    s = ((opentype == O_RDWR) ? "bdhmpqtuW" : "bdhmpqtu");
 	    command = menuSelect(COMMAND_LINE_Y, COMMAND_LINE_X, menuMain, 10,
-	        s, MENU_HORIZ | MENU_BUTTON | MENU_ACCEPT_OTHERS, is_first_run ? 7 : 0);
+	        s, MENU_BUTTON | MENU_ACCEPT_OTHERS, is_first_run ? 7 : 0);
 	} else {
 	    s = ((opentype == O_RDWR) ? "hpquW" : "hpqu");
 	    command = menuSelect(COMMAND_LINE_Y, COMMAND_LINE_X, menuMain, 10,
-	        s, MENU_HORIZ | MENU_BUTTON | MENU_ACCEPT_OTHERS, 0);
+	        s, MENU_BUTTON | MENU_ACCEPT_OTHERS, 0);
 	}
 	is_first_run = FALSE;
 	switch ( command ) {
@@ -2884,22 +2701,26 @@ do_curses_fdisk(void) {
 	    display_help();
 	    draw_screen();
 	    break;
-	case MENU_UP : /* Up arrow */
-	    if (!draw_cursor(-1))
-		command = 0;
-	    else
-		print_warning(_("No more partitions"));
+	case KEY_UP:	/* Up arrow key */
+	case '\020':	/* ^P */
+	case 'k':	/* Vi-like alternative */
+	    draw_cursor(-1);
 	    break;
-	case MENU_DOWN : /* Down arrow */
-	    if (!draw_cursor(1))
-		command = 0;
-	    else
-		print_warning(_("No more partitions"));
+	case KEY_DOWN:	/* Down arrow key */
+	case '\016':	/* ^N */
+	case 'j':	/* Vi-like alternative */
+	    draw_cursor(1);
 	    break;
 	case REDRAWKEY:
 	    clear();
 	    draw_screen();
 	    break;
+	case KEY_HOME:
+		draw_cursor(-cur_part);
+		break;
+	case KEY_END:
+		draw_cursor(num_parts - cur_part - 1);
+		break;
 	default:
 	    print_warning(_("Illegal command"));
 	    putchar(BELL); /* CTRL-G */

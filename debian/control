@@ -1,12 +1,13 @@
 Source: util-linux
-Build-Depends: libncurses5-dev, libslang2-dev (>=2.0.4), gettext, zlib1g-dev, dpkg-dev (>=1.13.12), libselinux1-dev [!kfreebsd-i386 !kfreebsd-amd64 !hurd-i386], debhelper (>=5), lsb-release, pkg-config, po-debconf
+Build-Depends: libncurses5-dev, libslang2-dev (>=2.0.4), gettext, zlib1g-dev, dpkg-dev (>=1.16.0), libselinux1-dev [linux-any], debhelper (>=5), lsb-release, pkg-config, po-debconf, autoconf, automake, autopoint, libtool
 Section: base
 Priority: required
-Uploaders: Scott James Remnant <scott@ubuntu.com>
-Standards-Version: 3.7.3.0
+Uploaders: Scott James Remnant <scott@ubuntu.com>, Adam Conrad <adconrad@0c3.net>
+Standards-Version: 3.9.2
 Maintainer: LaMont Jones <lamont@debian.org>
-XS-Vcs-Browser: http://git.debian.org/?p=users/lamont/util-linux.git
-XS-Vcs-Git: git://git.debian.org/~lamont/util-linux.git
+Vcs-Browser: http://git.debian.org/?p=users/lamont/util-linux.git
+Vcs-Git: git://git.debian.org/~lamont/util-linux.git
+Homepage: http://userweb.kernel.org/~kzak/util-linux/
 
 Package: util-linux
 Architecture: any
@@ -16,9 +17,10 @@ Essential: yes
 Depends: lsb-base (>= 3.0-6), tzdata (>=2006c-2), initscripts, dpkg (>= 1.15.4) | install-info, ${misc:Depends}
 Pre-Depends: ${shlibs:Depends}
 Suggests: util-linux-locales, kbd | console-tools, dosfstools
-Replaces: schedutils, miscutils, setterm, fdisk, linux32, sparc-utils, e2fsprogs, ${util-linux:Conflicts}
-Conflicts: schedutils, setterm, fdisk, kbd (<< 1.05-3), console-tools (<< 1:0.2.3-21), linux32, ${util-linux:Conflicts}
+Replaces: fstrim, schedutils, miscutils, setterm, fdisk, linux32, sparc-utils, e2fsprogs, ${util-linux:Conflicts}
+Conflicts: fstrim, schedutils, setterm, fdisk, kbd (<< 1.05-3), console-tools (<< 1:0.2.3-21), linux32, ${util-linux:Conflicts}
 Provides: schedutils, linux32
+Multi-Arch: foreign
 Description: Miscellaneous system utilities
  This package contains a number of important utilities, most of which
  are oriented towards maintenance of your system.  Some of the more
@@ -39,11 +41,12 @@ Description: Locales files for util-linux
  messages in other languages than English.
 
 Package: mount
-Architecture: alpha amd64 arm armeb armel avr32 hppa i386 ia64 lpia m32r m68k mips mipsel powerpc powerpcspe ppc64 sh4 s390 sparc sparc64
+Architecture: linux-any
 Essential: yes
 Section: admin
 Pre-Depends: ${shlibs:Depends}
 Suggests: nfs-common (>=1:1.1.0-13)
+Multi-Arch: foreign
 Description: Tools for mounting and manipulating filesystems
  This package provides the mount(8), umount(8), swapon(8),
  swapoff(8), and losetup(8) commands.
@@ -54,13 +57,14 @@ Essential: yes
 Section: utils
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Recommends: bsdmainutils
+Multi-Arch: foreign
 Description: Basic utilities from 4.4BSD-Lite
  This package contains the bare minimum number of BSD utilities needed
  to boot a Debian system: logger, renice, script, scriptreplay, and wall.
  The remaining standard BSD utilities are provided by bsdmainutils.
 
 Package: fdisk-udeb
-Architecture: alpha amd64 arm armeb armel avr32 hppa i386 ia64 lpia m32r mips mipsel powerpc powerpcspe ppc64 hurd-i386 sh4 sparc s390
+Architecture: linux-any hurd-any
 Priority: extra
 Section: debian-installer
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -69,7 +73,7 @@ XB-Installer-Menu-Item: 99999
 Description: Manually partition a hard drive (fdisk)
 
 Package: cfdisk-udeb
-Architecture: alpha amd64 arm armeb armel avr32 hppa i386 ia64 lpia m32r mips mipsel powerpc powerpcspe ppc64 hurd-i386 sh4 s390
+Architecture: linux-any hurd-any
 Priority: extra
 Section: debian-installer
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -82,6 +86,8 @@ Section: libs
 Priority: required
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Architecture: any
+Multi-Arch: same
+Pre-Depends: multiarch-support
 Description: block device id library
  The blkid library which allows system programs like fsck and
  mount to quickly and easily find block devices by filesystem UUID and
@@ -95,6 +101,7 @@ Section: debian-installer
 Priority: optional
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Architecture: any
+Multi-Arch: same
 Description: block device id library
  The blkid library which allows system programs like fsck and
  mount to quickly and easily find block devices by filesystem UUID and
@@ -118,12 +125,44 @@ Description: block device id library - headers and static libraries
  .
  This package contains the development environment for the blkid library.
 
+Package: libmount1
+Section: libs
+Priority: required
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Pre-Depends: multiarch-support
+Architecture: linux-any
+Description: block device id library
+ The device mounting library, used by mount and mount helpers.
+
+Package: libmount1-udeb
+XC-Package-Type: udeb
+Section: debian-installer
+Priority: optional
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Architecture: linux-any
+Description: block device id library
+ The device mounting library, used by mount and mount helpers.
+ .
+ This is a minimal package for debian-installer.
+
+Package: libmount-dev
+Section: libdevel
+Priority: extra
+Depends: libc6-dev | libc-dev, libmount1 (= ${binary:Version}), uuid-dev, ${misc:Depends}
+Architecture: linux-any
+Description: block device id library - headers and static libraries
+ The device mounting library, used by mount and mount helpers.
+ .
+ This package contains the development environment for the mount library.
+
 Package: libuuid1
 Section: libs
 Depends: passwd, ${shlibs:Depends}, ${misc:Depends}
 Recommends: uuid-runtime
 Replaces: e2fsprogs (<< 1.34-1)
 Architecture: any
+Multi-Arch: same
+Pre-Depends: multiarch-support
 Description: Universally Unique ID library
  The libuuid library generates and parses 128-bit universally unique
  ids (UUIDs).  A UUID is an identifier that is unique across both
@@ -140,6 +179,7 @@ Priority: optional
 Depends: passwd, libuuid1 (>> 1.40.3-1), ${shlibs:Depends}, ${misc:Depends}
 Replaces: e2fsprogs (<= 1.40.3-1ubuntu1)
 Architecture: any
+Multi-Arch: foreign
 Description: runtime components for the Universally Unique ID library
  The libuuid library generates and parses 128-bit universally unique
  ids (UUIDs).  A UUID is an identifier that is unique across both

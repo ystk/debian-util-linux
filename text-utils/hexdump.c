@@ -38,8 +38,11 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "hexdump.h"
+
 #include "nls.h"
+#include "c.h"
 
 FS *fshead;				/* head of format strings */
 int blocksize;				/* data block size */
@@ -55,10 +58,11 @@ int main(int argc, char **argv)
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
-	if (!(p = strrchr(argv[0], 'o')) || strcmp(p, "od"))
+	if (!(p = strrchr(argv[0], 'o')) || strcmp(p, "od")) {
 		newsyntax(argc, &argv);
-	else
-		oldsyntax(argc, &argv);
+	} else
+		errx(EXIT_FAILURE, _("calling hexdump as od has been deprecated "
+				     "in favour to GNU coreutils od."));
 
 	/* figure out the data block size */
 	for (blocksize = 0, tfs = fshead; tfs; tfs = tfs->nextfs) {

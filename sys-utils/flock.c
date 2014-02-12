@@ -39,6 +39,8 @@
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "nls.h"
 
@@ -60,21 +62,22 @@ const char *program;
 
 static void usage(int ex)
 {
-  fputs("flock (" PACKAGE_STRING ")\n", stderr);
+  fputs(_("\nUsage:\n"), stderr);
   fprintf(stderr,
-	_("Usage: %1$s [-sxun][-w #] fd#\n"
-	  "       %1$s [-sxon][-w #] file [-c] command...\n"
-	  "       %1$s [-sxon][-w #] directory [-c] command...\n"
-	  "  -s  --shared     Get a shared lock\n"
-	  "  -x  --exclusive  Get an exclusive lock\n"
-	  "  -u  --unlock     Remove a lock\n"
-	  "  -n  --nonblock   Fail rather than wait\n"
-	  "  -w  --timeout    Wait for a limited amount of time\n"
-	  "  -o  --close      Close file descriptor before running command\n"
-	  "  -c  --command    Run a single command string through the shell\n"
-	  "  -h  --help       Display this text\n"
-	  "  -V  --version    Display version\n"),
-	  program);
+	_(" %1$s [-sxun][-w #] fd#\n"
+	  " %1$s [-sxon][-w #] file [-c] command...\n"
+	  " %1$s [-sxon][-w #] directory [-c] command...\n"), program);
+
+  fputs(_("\nOptions:\n"), stderr);
+  fputs(_(" -s  --shared     Get a shared lock\n"
+	  " -x  --exclusive  Get an exclusive lock\n"
+	  " -u  --unlock     Remove a lock\n"
+	  " -n  --nonblock   Fail rather than wait\n"
+	  " -w  --timeout    Wait for a limited amount of time\n"
+	  " -o  --close      Close file descriptor before running command\n"
+	  " -c  --command    Run a single command string through the shell\n"
+	  " -h  --help       Display this text\n"
+	  " -V  --version    Display version\n\n"), stderr);
   exit(ex);
 }
 
@@ -126,6 +129,7 @@ int main(int argc, char *argv[])
   int have_timeout = 0;
   int type = LOCK_EX;
   int block = 0;
+  int open_accmode;
   int fd = -1;
   int opt, ix;
   int do_close = 0;
@@ -208,9 +212,11 @@ int main(int argc, char *argv[])
     }
 
     filename = argv[optind];
-    fd = open(filename, O_RDONLY|O_NOCTTY|O_CREAT, 0666);
+    open_accmode = ((type == LOCK_SH || access(filename, R_OK|W_OK) < 0) ?
+                    O_RDONLY : O_RDWR);
+    fd = open(filename, open_accmode|O_NOCTTY|O_CREAT, 0666);
     /* Linux doesn't like O_CREAT on a directory, even though it should be a
-       no-op */
+       no-op; POSIX doesn't allow O_RDWR or O_WRONLY */
     if (fd < 0 && errno == EISDIR)
         fd = open(filename, O_RDONLY|O_NOCTTY);
 
@@ -253,7 +259,7 @@ int main(int argc, char *argv[])
       memset(&sa, 0, sizeof sa);
 
       sa.sa_handler = timeout_handler;
-      sa.sa_flags   = SA_ONESHOT;
+      sa.sa_flags   = SA_RESETHAND;
       sigaction(SIGALRM, &sa, &old_sa);
 
       setitimer(ITIMER_REAL, &timeout, &old_timer);
@@ -298,8 +304,8 @@ int main(int argc, char *argv[])
     } else if ( f == 0 ) {
       if ( do_close )
 	close(fd);
-      err = errno;
       execvp(cmd_argv[0], cmd_argv);
+      err = errno;
       /* execvp() failed */
       fprintf(stderr, "%s: %s: %s\n", program, cmd_argv[0], strerror(err));
       _exit((err == ENOMEM) ? EX_OSERR: EX_UNAVAILABLE);

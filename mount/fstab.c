@@ -148,10 +148,55 @@ read_mntentchn(mntFILE *mfp, const char *fnam, struct mntentchn *mc0) {
 	my_endmntent(mfp);
 }
 
+#ifdef HAVE_LIBMOUNT_MOUNT
+
+#define USE_UNSTABLE_LIBMOUNT_API
+#include <libmount.h>			/* libmount */
+
+static void read_mounttable()
+{
+	struct mntentchn *mc0 = &mounttable, *mc = mc0;
+	struct libmnt_table *tb = mnt_new_table();
+	struct libmnt_iter *itr = mnt_new_iter(MNT_ITER_FORWARD);
+	struct libmnt_fs *fs;
+
+	got_mtab = 1;
+	mc->nxt = mc->prev = NULL;
+
+	if (!tb || !itr)
+		goto err;
+	if (mnt_table_parse_mtab(tb, NULL))
+		goto err;
+
+	while(mnt_table_next_fs(tb, itr, &fs) == 0) {
+		const char *type = mnt_fs_get_fstype(fs);
+		struct my_mntent *mnt = NULL;
+
+		if (type && strcmp(type, MNTTYPE_IGNORE) == 0)
+			continue;
+		if (mnt_fs_to_mntent(fs, (struct mntent **) &mnt))
+			goto err;
+		mc->nxt = xmalloc(sizeof(*mc));
+		mc->nxt->prev = mc;
+		mc = mc->nxt;
+		mc->m = *mnt;
+		mc->nxt = mc0;
+	}
+
+	mc0->prev = mc;
+	return;
+err:
+	error(_("warning: failed to read mtab"));
+	mnt_free_table(tb);
+	mnt_free_iter(itr);
+	mc->nxt = mc->prev = NULL;
+}
+
+#else /* !HAVE_LIBMOUNT_MOUNT */
+
 /*
  * Read /etc/mtab.  If that fails, try /proc/mounts.
  * This produces a linked list. The list head mounttable is a dummy.
- * Return 0 on success.
  */
 static void
 read_mounttable() {
@@ -180,6 +225,7 @@ read_mounttable() {
 	}
 	read_mntentchn(mfp, fnam, mc);
 }
+#endif /* HAVE_LIBMOUNT_MOUNT */
 
 static void
 read_fstab() {
@@ -216,6 +262,29 @@ getmntfile (const char *name) {
 }
 
 /*
+ * Given the name NAME, and the place MCPREV we found it last time,
+ * try to find it in mtab.
+ */
+struct mntentchn *
+getmntfilebackward (const char *name, struct mntentchn *mcprev) {
+	struct mntentchn *mc, *mc0;
+
+	mc0 = mtab_head();
+	if (!mcprev)
+		mcprev = mc0;
+
+	for (mc = mcprev->prev; mc && mc != mc0; mc = mc->prev)
+		if (streq(mc->m.mnt_dir, name))
+			return mc;
+
+	for (mc = mcprev->prev; mc && mc != mc0; mc = mc->prev)
+		if (streq(mc->m.mnt_fsname, name))
+			return mc;
+
+	return NULL;
+}
+
+/*
  * Given the directory name NAME, and the place MCPREV we found it last time,
  * try to find more occurrences.
  */
@@ -243,9 +312,25 @@ getmntdevbackward (const char *name, struct mntentchn *mcprev) {
 	mc0 = mtab_head();
 	if (!mcprev)
 		mcprev = mc0;
-	for (mc = mcprev->prev; mc && mc != mc0; mc = mc->prev)
+
+	/* canonical names in mtab */
+	for (mc = mcprev->prev; mc && mc != mc0; mc = mc->prev) {
 		if (streq(mc->m.mnt_fsname, name))
 			return mc;
+	}
+
+	/* non-canonical names in mtab (this is BAD THING!) 
+	 * but it should be allowed only for spec fsname(s) 
+	 */
+	for (mc = mcprev->prev; mc && mc != mc0; mc = mc->prev) {
+		char *cn = canonicalize_spec(mc->m.mnt_fsname);
+		int res = cn ? streq(cn, name) : 0;
+
+		free(cn);
+		if (res)
+			return mc;
+	}
+
 	return NULL;
 }
 
@@ -377,7 +462,13 @@ getfs_by_dir (const char *dir) {
 
 	cdir = canonicalize(dir);
 	for (mc = mc0->nxt; mc && mc != mc0; mc = mc->nxt) {
-		if (streq(mc->m.mnt_dir, cdir)) {
+		int ok = streq(mc->m.mnt_dir, cdir);
+		if (!ok) {
+			char *dr = canonicalize(mc->m.mnt_dir);
+			ok = dr ? streq(dr, cdir) : 0;
+			free(dr);
+		}
+		if (ok) {
 			free(cdir);
 			return mc;
 		}
@@ -496,7 +587,7 @@ handler (int sig) {
 }
 
 static void
-setlkw_timeout (int sig) {
+setlkw_timeout (int sig __attribute__ ((__unused__))) {
      /* nothing, fcntl will fail anyway */
 }
 
@@ -676,7 +767,8 @@ lock_mtab (void) {
 	}
 }
 
-static char *
+/* returns whole option with name @optname from @src list */
+char *
 get_option(const char *optname, const char *src, size_t *len)
 {
 	char *opt, *end;
@@ -690,7 +782,7 @@ get_option(const char *optname, const char *src, size_t *len)
 		return NULL;
 
 	end = strchr(opt, ',');
-	sz = end ? end - opt : strlen(opt);
+	sz = end && end > opt ? (size_t) (end - opt) : strlen(opt);
 
 	if (len)
 		*len = sz;
@@ -699,6 +791,25 @@ get_option(const char *optname, const char *src, size_t *len)
 	    (*(opt + sz) == '\0' || *(opt + sz) == ','))
 		return opt;
 
+	return NULL;
+}
+
+ /* If @list contains "user=peter" and @s is "user=", return "peter" */
+char *
+get_option_value(const char *list, const char *s)
+{
+	const char *t;
+	size_t n = strlen(s);
+
+	while (list && *list) {
+		if (strncmp(list, s, n) == 0) {
+			s = t = list + n;
+			while (*s && *s != ',')
+				s++;
+			return xstrndup(t, s-t);
+		}
+		while (*list && *list++ != ',') ;
+	}
 	return NULL;
 }
 
@@ -773,7 +884,7 @@ update_mtab (const char *dir, struct my_mntent *instead) {
 	mntFILE *mfp, *mftmp;
 	const char *fnam = _PATH_MOUNTED;
 	struct mntentchn mtabhead;	/* dummy */
-	struct mntentchn *mc, *mc0, *absent = NULL;
+	struct mntentchn *mc, *mc0 = NULL, *absent = NULL;
 	struct stat sbuf;
 	int fd;
 
@@ -797,10 +908,12 @@ update_mtab (const char *dir, struct my_mntent *instead) {
 	read_mntentchn(mfp, fnam, mc);
 
 	/* find last occurrence of dir */
-	for (mc = mc0->prev; mc && mc != mc0; mc = mc->prev)
-		if (streq(mc->m.mnt_dir, dir))
-			break;
-	if (mc && mc != mc0) {
+	if (dir) {
+		for (mc = mc0->prev; mc && mc != mc0; mc = mc->prev)
+			if (streq(mc->m.mnt_dir, dir))
+				break;
+	}
+	if (dir && mc && mc != mc0) {
 		if (instead == NULL) {
 			/* An umount - remove entry */
 			if (mc && mc != mc0) {
@@ -846,24 +959,37 @@ update_mtab (const char *dir, struct my_mntent *instead) {
 		int errsv = errno;
 		error (_("cannot open %s (%s) - mtab not updated"),
 		       _PATH_MOUNTED_TMP, strerror (errsv));
-		discard_mntentchn(mc0);
 		goto leave;
 	}
 
 	for (mc = mc0->nxt; mc && mc != mc0; mc = mc->nxt) {
 		if (my_addmntent(mftmp, &(mc->m)) == 1) {
 			int errsv = errno;
-			die (EX_FILEIO, _("error writing %s: %s"),
+			error(_("error writing %s: %s"),
 			     _PATH_MOUNTED_TMP, strerror (errsv));
+			goto leave;
 		}
 	}
 
 	discard_mntentchn(mc0);
+	mc0 = NULL;
+
+	/*
+	 * We have to be paranoid with write() to avoid incomplete
+	 * /etc/mtab. Users are able to control writing by RLIMIT_FSIZE.
+	 */
+	if (fflush(mftmp->mntent_fp) != 0) {
+		int errsv = errno;
+		error (_("%s: cannot fflush changes: %s"),
+				_PATH_MOUNTED_TMP, strerror (errsv));
+		goto leave;
+	}
+
 	fd = fileno(mftmp->mntent_fp);
 
 	/*
-	 * It seems that better is incomplete and broken /mnt/mtab that
-	 * /mnt/mtab that is writeable for non-root users.
+	 * It seems that better is incomplete and broken /etc/mtab that
+	 * /etc/mtab that is writeable for non-root users.
 	 *
 	 * We always skip rename() when chown() and chmod() failed.
 	 * -- kzak, 11-Oct-2007
@@ -900,6 +1026,9 @@ update_mtab (const char *dir, struct my_mntent *instead) {
 	}
 
  leave:
+	if (mc0)
+		discard_mntentchn(mc0);
+	unlink(_PATH_MOUNTED_TMP);
 	unlock_mtab();
 }
 

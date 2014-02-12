@@ -58,15 +58,18 @@
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <err.h>
+#include <errno.h>
 
 #include "c.h"
 #include "nls.h"
+#include "mbsalign.h"
+#include "strutils.h"
 
 #if defined(HAVE_LIBNCURSES) || defined(HAVE_LIBNCURSESW)
 
@@ -89,12 +92,12 @@ my_putstring(char *s) {
 }
 
 static const char *
-my_tgetstr(char *s, char *ss) {
+my_tgetstr(char *s __attribute__ ((__unused__)), char *ss) {
     const char* ret = tigetstr(ss);
     if (!ret || ret==(char*)-1)
-        return "";
+	return "";
     else
-        return ret;
+	return ret;
 }
 
 #elif defined(HAVE_LIBTERMCAP)
@@ -116,12 +119,12 @@ my_putstring(char *s) {
 }
 
 static const char *
-my_tgetstr(char *s, char *ss) {
+my_tgetstr(char *s, char *ss __attribute__ ((__unused__))) {
     const char* ret = tgetstr(s, &strbuf);
     if (!ret)
-        return "";
+	return "";
     else
-        return ret;
+	return ret;
 }
 
 #else /* ! (HAVE_LIBTERMCAP || HAVE_LIBNCURSES || HAVE_LIBNCURSESW) */
@@ -138,10 +141,6 @@ const char	*term="";
 const char	*Senter="", *Sexit="";/* enter and exit standout mode */
 int		Slen;		/* strlen of Senter+Sexit */
 char		*Hrow;		/* pointer to highlighted row in month */
-
-#ifdef HAVE_LANGINFO_H
-# include <langinfo.h>
-#endif
 
 #include "widechar.h"
 
@@ -243,8 +242,8 @@ struct fmt_st
 };
 
 char * ascii_day(char *, int);
-int center_str(const char* src, char* dest, size_t dest_size, int width);
-void center(const char *, int, int);
+int center_str(const char* src, char* dest, size_t dest_size, size_t width);
+void center(const char *, size_t, int);
 void day_array(int, int, int, int *);
 int day_in_week(int, int, int);
 int day_in_year(int, int, int);
@@ -254,22 +253,27 @@ void do_monthly(int, int, int, struct fmt_st*);
 void monthly(int, int, int);
 void monthly3(int, int, int);
 void trim_trailing_spaces(char *);
-void usage(void);
+static void __attribute__ ((__noreturn__)) usage(FILE * out);
 void headers_init(void);
-extern char *__progname;
 
 int
 main(int argc, char **argv) {
 	struct tm *local_time;
 	time_t now;
 	int ch, day, month, year, yflag;
-	char *progname, *p;
 	int num_months = NUM_MONTHS;
 
-	progname = argv[0];
-	if ((p = strrchr(progname, '/')) != NULL)
-		progname = p+1;
-	__progname = progname;
+	static const struct option longopts[] = {
+		{"one", no_argument, NULL, '1'},
+		{"three", no_argument, NULL, '3'},
+		{"sunday", no_argument, NULL, 's'},
+		{"monday", no_argument, NULL, 'm'},
+		{"julian", no_argument, NULL, 'j'},
+		{"year", no_argument, NULL, 'y'},
+		{"version", no_argument, NULL, 'V'},
+		{"help", no_argument, NULL, 'h'},
+		{NULL, 0, NULL, 0}
+	};
 
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, LOCALEDIR);
@@ -299,17 +303,17 @@ main(int argc, char **argv) {
 	 * This is needed to support first_weekday=2 and first_workday=1 for
 	 * the rare case where working days span across 2 weeks.
 	 * This shell script shows the combinations and calculations involved:
-
-	 for LANG in en_US ru_RU fr_FR csb_PL POSIX; do
-	   printf "%s:\t%s + %s -1 = " $LANG $(locale week-1stday first_weekday)
-	   date -d"$(locale week-1stday) +$(($(locale first_weekday)-1))day" +%w
-	 done
-
-	 en_US:  19971130 + 1 -1 = 0  #0 = sunday
-	 ru_RU:  19971130 + 2 -1 = 1
-	 fr_FR:  19971201 + 1 -1 = 1
-	 csb_PL: 19971201 + 2 -1 = 2
-	 POSIX:  19971201 + 7 -1 = 0
+	 *
+	 * for LANG in en_US ru_RU fr_FR csb_PL POSIX; do
+	 *   printf "%s:\t%s + %s -1 = " $LANG $(locale week-1stday first_weekday)
+	 *   date -d"$(locale week-1stday) +$(($(locale first_weekday)-1))day" +%w
+	 * done
+	 *
+	 * en_US:  19971130 + 1 -1 = 0  #0 = sunday
+	 * ru_RU:  19971130 + 2 -1 = 1
+	 * fr_FR:  19971201 + 1 -1 = 1
+	 * csb_PL: 19971201 + 2 -1 = 2
+	 * POSIX:  19971201 + 7 -1 = 0
 	 */
 	{
 		int wfd;
@@ -323,7 +327,7 @@ main(int argc, char **argv) {
 #endif
 
 	yflag = 0;
-	while ((ch = getopt(argc, argv, "13mjsyV")) != -1)
+	while ((ch = getopt_long(argc, argv, "13mjsyVh", longopts, NULL)) != -1)
 		switch(ch) {
 		case '1':
 			num_months = 1;		/* default */
@@ -344,12 +348,14 @@ main(int argc, char **argv) {
 			yflag = 1;
 			break;
 		case 'V':
-			printf(_("%s from %s\n"),
-			       progname, PACKAGE_STRING);
-			return 0;
+			printf(_("%s from %s\n"), program_invocation_short_name,
+			       PACKAGE_STRING);
+			return EXIT_SUCCESS;
+		case 'h':
+			usage(stdout);
 		case '?':
 		default:
-			usage();
+			usage(stderr);
 		}
 	argc -= optind;
 	argv += optind;
@@ -360,20 +366,23 @@ main(int argc, char **argv) {
 	day = month = year = 0;
 	switch(argc) {
 	case 3:
-		if ((day = atoi(*argv++)) < 1 || day > 31)
-			errx(1, _("illegal day value: use 1-%d"), 31);
+		day = strtol_or_err(*argv++, _("illegal day value"));
+                if (day < 1 || 31 < day)
+			errx(EXIT_FAILURE, _("illegal day value: use 1-%d"), 31);
 		/* FALLTHROUGH */
 	case 2:
-		if ((month = atoi(*argv++)) < 1 || month > 12)
-			errx(1, _("illegal month value: use 1-12"));
+		month = strtol_or_err(*argv++, _("illegal month value: use 1-12"));
+		if (month < 1 || 12 < month)
+			errx(EXIT_FAILURE, _("illegal month value: use 1-12"));
 		/* FALLTHROUGH */
 	case 1:
-		if ((year = atoi(*argv)) < 1 || year > 9999)
-			errx(1, _("illegal year value: use 1-9999"));
+		year = strtol_or_err(*argv++, _("illegal year value: use 1-9999"));
+		if (year < 1 || 9999 < year)
+			errx(EXIT_FAILURE, _("illegal year value: use 1-9999"));
 		if (day) {
 			int dm = days_in_month[leap_year(year)][month];
 			if (day > dm)
-				errx(1, _("illegal day value: use 1-%d"), dm);
+				errx(EXIT_FAILURE, _("illegal day value: use 1-%d"), dm);
 			day = day_in_year(day, month, year);
 		} else if ((local_time->tm_year + 1900) == year) {
 			day = local_time->tm_yday + 1;
@@ -387,7 +396,7 @@ main(int argc, char **argv) {
 		month = local_time->tm_mon + 1;
 		break;
 	default:
-		usage();
+		usage(stderr);
 	}
 	headers_init();
 
@@ -402,51 +411,45 @@ main(int argc, char **argv) {
 		monthly(day, month, year);
 	else if (num_months == 3)
 		monthly3(day, month, year);
-	exit(0);
+
+	return EXIT_SUCCESS;
 }
 
 void headers_init(void)
 {
-  int i, wd;
-  char *cur_dh = day_headings, *cur_j_dh = j_day_headings;
+	int i, wd;
+	char *cur_dh = day_headings, *cur_j_dh = j_day_headings;
 
-  strcpy(day_headings,"");
-  strcpy(j_day_headings,"");
+	strcpy(day_headings, "");
+	strcpy(j_day_headings, "");
 
-#ifdef HAVE_LANGINFO_H
-# define weekday(wd)	nl_langinfo(ABDAY_1+wd)
-#else
-# define weekday(wd)	_time_info->abbrev_wkday[wd]
-#endif
+	for (i = 0; i < 7; i++) {
+		ssize_t space_left;
+		wd = (i + weekstart) % 7;
 
-  for(i = 0 ; i < 7 ; i++ ) {
-     ssize_t space_left;
-     wd = (i + weekstart) % 7;
+		if (i)
+			strcat(cur_dh++, " ");
+		space_left =
+		    sizeof(day_headings) - (cur_dh - day_headings);
+		if (space_left <= 2)
+			break;
+		cur_dh +=
+		    center_str(nl_langinfo(ABDAY_1 + wd), cur_dh,
+			       space_left, 2);
 
-     if (i)
-        strcat(cur_dh++, " ");
-     space_left = sizeof(day_headings) - (cur_dh - day_headings);
-     if(space_left <= 2)
-        break;
-     cur_dh += center_str(weekday(wd), cur_dh, space_left, 2);
+		if (i)
+			strcat(cur_j_dh++, " ");
+		space_left =
+		    sizeof(j_day_headings) - (cur_j_dh - j_day_headings);
+		if (space_left <= 3)
+			break;
+		cur_j_dh +=
+		    center_str(nl_langinfo(ABDAY_1 + wd), cur_j_dh,
+			       space_left, 3);
+	}
 
-     if (i)
-        strcat(cur_j_dh++, " ");
-     space_left = sizeof(j_day_headings) - (cur_j_dh - j_day_headings);
-     if(space_left <= 3)
-        break;
-     cur_j_dh += center_str(weekday(wd), cur_j_dh, space_left, 3);
-  }
-
-#undef weekday
-
-  for (i = 0; i < 12; i++) {
-#ifdef HAVE_LANGINFO_H
-     full_month[i] = nl_langinfo(MON_1+i);
-#else
-     full_month[i] = _time_info->full_month[i];
-#endif
-  }
+	for (i = 0; i < 12; i++)
+		full_month[i] = nl_langinfo(MON_1 + i);
 }
 
 void
@@ -527,7 +530,7 @@ monthly3(int day, int month, int year) {
 	do_monthly(day, month,      year,      &out_curm);
 	do_monthly(day, next_month, next_year, &out_next);
 
-        width = (julian ? J_WEEK_LEN : WEEK_LEN) -1;
+	width = (julian ? J_WEEK_LEN : WEEK_LEN) -1;
 	for (i = 0; i < 2; i++)
 		printf("%s  %s  %s\n", out_prev.s[i], out_curm.s[i], out_next.s[i]);
 	for (i = 2; i < FMT_ST_LINES; i++) {
@@ -535,10 +538,10 @@ monthly3(int day, int month, int year) {
 		w1 = w2 = w3 = width;
 
 #if defined(HAVE_LIBNCURSES) || defined(HAVE_LIBNCURSESW) || defined(HAVE_LIBTERMCAP)
-                /* adjust width to allow for non printable characters */
-                w1 += (out_prev.s[i] == Hrow ? Slen : 0);
-                w2 += (out_curm.s[i] == Hrow ? Slen : 0);
-                w3 += (out_next.s[i] == Hrow ? Slen : 0);
+		/* adjust width to allow for non printable characters */
+		w1 += (out_prev.s[i] == Hrow ? Slen : 0);
+		w2 += (out_curm.s[i] == Hrow ? Slen : 0);
+		w3 += (out_next.s[i] == Hrow ? Slen : 0);
 #endif
 		snprintf(lineout, sizeof(lineout), "%-*s  %-*s  %-*s\n",
 		       w1, out_prev.s[i],
@@ -753,95 +756,22 @@ trim_trailing_spaces(s)
 	*p = '\0';
 }
 
-#ifdef HAVE_WIDECHAR
-/* replace non printable chars.
- * return 1 if replacement made, 0 otherwise */
-int wc_ensure_printable(wchar_t* wchars)
-{
-	int replaced=0;
-	wchar_t* wc = wchars;
-	while (*wc) {
-		if (!iswprint((wint_t) *wc)) {
-			*wc=L'\uFFFD';
-			replaced=1;
-		}
-		wc++;
-	}
-	return replaced;
-}
-
-/* truncate wchar string to width cells.
- * returns number of cells used. */
-size_t wc_truncate(wchar_t* wchars, size_t width, size_t minchars)
-{
-	int wc=0;
-	int cells=0;
-	while (*(wchars+wc)) {
-		cells = wcswidth(wchars, wc+1);
-		if (cells > width) {
-			if (wc >= minchars) {
-				break;
-			}
-		}
-		wc++;
-	}
-	wchars[wc]=L'\0';
-	return cells;
-}
-#endif
-
 /*
  * Center string, handling multibyte characters appropriately.
  * In addition if the string is too large for the width it's truncated.
  * The number of trailing spaces may be 1 less than the number of leading spaces.
  */
 int
-center_str(const char* src, char* dest, size_t dest_size, int width)
+center_str(const char* src, char* dest, size_t dest_size, size_t width)
 {
-#ifdef HAVE_WIDECHAR
-	wchar_t str_wc[FMT_ST_CHARS];
-#endif
-	char str[FMT_ST_CHARS];
-	const char* str_to_print=src;
-	int used, spaces, wc_conversion=0, wc_enabled=0;
-
-#ifdef HAVE_WIDECHAR
-	if (mbstowcs(str_wc, src, ARRAY_SIZE(str_wc)) > 0) {
-		str_wc[ARRAY_SIZE(str_wc)-1]=L'\0';
-		wc_enabled=1;
-		wc_conversion = wc_ensure_printable(str_wc);
-		used = wcswidth(str_wc, ARRAY_SIZE(str_wc));
-	}
-	else
-#endif
-		used = strlen(src);
-
-	if (wc_conversion || used > width) {
-		str_to_print=str;
-		if (wc_enabled) {
-#ifdef HAVE_WIDECHAR
-			used = wc_truncate(str_wc, width, 1);
-			wcstombs(str, str_wc, ARRAY_SIZE(str));
-#endif
-		} else {
-			memcpy(str, src, width);
-			str[width]='\0';
-		}
-	}
-
-	spaces = width - used;
-	spaces = ( spaces < 0 ? 0 : spaces );
-
-	return snprintf(dest, dest_size, "%*s%s%*s",
-		spaces / 2 + spaces % 2, "",
-		str_to_print,
-		spaces / 2, "" );
+	return mbsalign(src, dest, dest_size, &width,
+			MBS_ALIGN_CENTER, MBA_UNIBYTE_FALLBACK);
 }
 
 void
 center(str, len, separate)
 	const char *str;
-	int len;
+	size_t len;
 	int separate;
 {
 	char lineout[FMT_ST_CHARS];
@@ -851,10 +781,22 @@ center(str, len, separate)
 		printf("%*s", separate, "");
 }
 
-void
-usage()
+static void __attribute__ ((__noreturn__)) usage(FILE * out)
 {
+	fputs(_("\nUsage:\n"), out);
+	fprintf(out,
+	      _(" %s [options] [[[day] month] year]\n"),
+			program_invocation_short_name);
 
-	fprintf(stderr, _("usage: cal [-13smjyV] [[[day] month] year]\n"));
-	exit(1);
+	fputs(_("\nOptions:\n"), out);
+	fputs(_(" -1, --one        show only current month (default)\n"
+	        " -3, --three      show previous, current and next month\n"
+		" -s, --sunday     Sunday as first day of week\n"
+		" -m, --monday     Monday as first day of week\n"
+		" -j, --julian     output Julian dates\n"
+		" -y, --year       show whole current year\n"
+		" -V, --version    display version information and exit\n"
+		" -h, --help       display this help text and exit\n\n"), out);
+
+	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }

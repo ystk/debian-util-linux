@@ -50,9 +50,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include "nls.h"
+#include <getopt.h>
 
+#include "nls.h"
+#include "xalloc.h"
 #include "widechar.h"
+#include "strutils.h"
 
 #define	BS	'\b'		/* backspace */
 #define	TAB	'\t'		/* tab */
@@ -92,14 +95,10 @@ struct line_str {
 	int	l_max_col;		/* max column in the line */
 };
 
-void usage(void);
-void wrerr(void);
-void warn(int);
 void free_line(LINE *l);
 void flush_line(LINE *l);
 void flush_lines(int);
 void flush_blanks(void);
-void *xmalloc(void *p, size_t size);
 LINE *alloc_line(void);
 
 CSET last_set;			/* char_set of last char printed */
@@ -115,6 +114,35 @@ int pass_unknown_seqs;		/* whether to pass unknown control sequences */
 	if (putwchar(ch) == WEOF) \
 		wrerr();
 
+static void __attribute__((__noreturn__)) usage(FILE *out)
+{
+	fprintf(out, _(
+		"\nUsage:\n"
+		" %s [options]\n"), program_invocation_short_name);
+
+	fprintf(out, _(
+		"\nOptions:\n"
+		" -b, --no-backspaces    do not output backspaces\n"
+		" -f, --fine             permit forward half line feeds\n"
+		" -p, --pass             pass unknown control sequences\n"
+		" -h, --tabs             convert spaces to tabs\n"
+		" -x, --spaces           convert tabs to spaces\n"
+		" -l, --lines NUM        buffer at least NUM lines\n"
+		" -V, --version          output version information and exit\n"
+		" -H, --help             display this help and exit\n\n"));
+
+	fprintf(out, _(
+		"%s reads from standard input and writes to standard output\n\n"),
+		program_invocation_short_name);
+
+	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
+static void __attribute__((__noreturn__)) wrerr()
+{
+	errx(EXIT_FAILURE, _("write error."));
+}
+
 int main(int argc, char **argv)
 {
 	register wint_t ch;
@@ -128,16 +156,30 @@ int main(int argc, char **argv)
 	int this_line;			/* line l points to */
 	int nflushd_lines;		/* number of lines that were flushed */
 	int adjust, opt, warned;
-	int ret = 0;
+	unsigned long tmplong;
+	int ret = EXIT_SUCCESS;
+
+	static const struct option longopts[] = {
+		{ "no-backspaces", no_argument,		0, 'b' },
+		{ "fine",	   no_argument,		0, 'f' },
+		{ "pass",	   no_argument,		0, 'p' },
+		{ "tabs",	   no_argument,		0, 'h' },
+		{ "spaces",	   no_argument,		0, 'x' },
+		{ "lines",	   required_argument,	0, 'l' },
+		{ "version",	   no_argument,		0, 'V' },
+		{ "help",	   no_argument,		0, 'H' },
+		{ NULL, 0, 0, 0 }
+	};
 
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
-	
-	max_bufd_lines = 128;
+
+	max_bufd_lines = 128 * 2;
 	compress_spaces = 1;		/* compress spaces into tabs */
 	pass_unknown_seqs = 0;          /* remove unknown escape sequences */
-	while ((opt = getopt(argc, argv, "bfhl:px")) != -1)
+
+	while ((opt = getopt_long(argc, argv, "bfhl:pxVH", longopts, NULL)) != -1)
 		switch (opt) {
 		case 'b':		/* do not output backspaces */
 			no_backspaces = 1;
@@ -148,12 +190,15 @@ int main(int argc, char **argv)
 		case 'h':		/* compress spaces into tabs */
 			compress_spaces = 1;
 			break;
-		case 'l':		/* buffered line count */
-			if ((max_bufd_lines = atoi(optarg)) <= 0) {
-				(void)fprintf(stderr,
-				    _("col: bad -l argument %s.\n"), optarg);
-				exit(1);
-			}
+		case 'l':
+			/*
+			 * Buffered line count, which is a value in half
+			 * lines e.g. twice the amount specified.
+			 */
+			tmplong = strtoul_or_err(optarg, _("bad -l argument")) * 2;
+			if ((INT_MAX) < tmplong)
+				errx(EXIT_FAILURE, _("argument %lu is too large"), tmplong);
+			max_bufd_lines = (int) tmplong;
 			break;
 		case 'p':
 			pass_unknown_seqs = 1;
@@ -161,31 +206,33 @@ int main(int argc, char **argv)
 		case 'x':		/* do not compress spaces into tabs */
 			compress_spaces = 0;
 			break;
-		case '?':
+		case 'V':
+			printf(_("%s from %s\n"), program_invocation_short_name,
+						  PACKAGE_STRING);
+			return EXIT_SUCCESS;
+		case 'H':
+			usage(stdout);
 		default:
-			usage();
+			usage(stderr);
 		}
 
 	if (optind != argc)
-		usage();
-
-	/* this value is in half lines */
-	max_bufd_lines *= 2;
+		usage(stderr);
 
 	adjust = cur_col = extra_lines = warned = 0;
 	cur_line = max_line = nflushd_lines = this_line = 0;
 	cur_set = last_set = CS_NORMAL;
 	lines = l = alloc_line();
-	
-	while (feof(stdin)==0) {
+
+	while (feof(stdin) == 0) {
 		errno = 0;
 		if ((ch = getwchar()) == WEOF) {
-			if (errno==EILSEQ) {
-				perror("col");
-				ret = 1;
+			if (errno == EILSEQ) {
+				warn(NULL);
+				ret = EXIT_FAILURE;
 			}
 			break;
-		}	
+		}
 		if (!iswgraph(ch)) {
 			switch (ch) {
 			case BS:		/* can't go back further */
@@ -275,7 +322,9 @@ int main(int argc, char **argv)
 						}
 					} else {
 						if (!warned++)
-							warn(cur_line);
+							warnx(
+			_("warning: can't back up %s."), cur_line < 0 ?
+			_("past first line") : _("-- line already flushed"));
 						cur_line -= nmove;
 					}
 				}
@@ -302,8 +351,8 @@ int main(int argc, char **argv)
 			int need;
 
 			need = l->l_lsize ? l->l_lsize * 2 : 90;
-			l->l_line = (CHAR *)xmalloc((void *) l->l_line,
-			    (unsigned) need * sizeof(CHAR));
+			l->l_line = (CHAR *)xrealloc((void *) l->l_line,
+						    (unsigned) need * sizeof(CHAR));
 			l->l_lsize = need;
 		}
 		c = &l->l_line[l->l_line_len++];
@@ -340,7 +389,7 @@ int main(int argc, char **argv)
 		nblank_lines = 2;
 	flush_blanks();
 	if (ferror(stdout) || fclose(stdout))
-		return 1;
+		return EXIT_FAILURE;
 	return ret;
 }
 
@@ -357,7 +406,7 @@ void flush_lines(int nflush)
 		}
 		nblank_lines++;
 		if (l->l_line)
-			(void)free((void *)l->l_line);
+			free((void *)l->l_line);
 		free_line(l);
 	}
 	if (lines)
@@ -415,12 +464,12 @@ void flush_line(LINE *l)
 		 */
 		if (l->l_lsize > sorted_size) {
 			sorted_size = l->l_lsize;
-			sorted = (CHAR *)xmalloc((void *)sorted,
-			    (unsigned)sizeof(CHAR) * sorted_size);
+			sorted = (CHAR *)xrealloc((void *)sorted,
+						  (unsigned)sizeof(CHAR) * sorted_size);
 		}
 		if (l->l_max_col >= count_size) {
 			count_size = l->l_max_col + 1;
-			count = (int *)xmalloc((void *)count,
+			count = (int *)xrealloc((void *)count,
 			    (unsigned)sizeof(int) * count_size);
 		}
 		memset(count, 0, sizeof(int) * l->l_max_col + 1);
@@ -464,11 +513,11 @@ void flush_line(LINE *l)
 				int ntabs;
 
 				ntabs = this_col / 8 - last_col / 8;
-                                if (ntabs > 0) {
-                                        nspace = this_col & 7;
-                                        while (--ntabs >= 0)
-                                                PUTC('\t');
-                                }
+				if (ntabs > 0) {
+					nspace = this_col & 7;
+					while (--ntabs >= 0)
+						PUTC('\t');
+				}
 			}
 			while (--nspace >= 0)
 				PUTC(' ');
@@ -487,7 +536,7 @@ void flush_line(LINE *l)
 				last_set = c->c_set;
 			}
 			PUTC(c->c_char);
-			if ((c+1) < endc) {
+			if ((c + 1) < endc) {
 				int i;
 				for (i=0; i < c->c_width; i++)
 					PUTC('\b');
@@ -495,7 +544,7 @@ void flush_line(LINE *l)
 			if (++c >= endc)
 				break;
 		}
-		last_col += (c-1)->c_width;
+		last_col += (c - 1)->c_width;
 	}
 }
 
@@ -510,7 +559,7 @@ alloc_line()
 	int i;
 
 	if (!line_freelist) {
-		l = (LINE *)xmalloc((void *)NULL, sizeof(LINE) * NALLOC);
+		l = xmalloc(sizeof(LINE) * NALLOC);
 		line_freelist = l;
 		for (i = 1; i < NALLOC; i++, l++)
 			l->l_next = l + 1;
@@ -520,40 +569,11 @@ alloc_line()
 	line_freelist = l->l_next;
 
 	memset(l, 0, sizeof(LINE));
-	return(l);
+	return l;
 }
 
 void free_line(LINE *l)
 {
 	l->l_next = line_freelist;
 	line_freelist = l;
-}
-
-void *
-xmalloc(void *p, size_t size)
-{
-	if (!(p = (void *)realloc(p, size))) {
-		(void)fprintf(stderr, "col: %s.\n", strerror(ENOMEM));
-		exit(1);
-	}
-	return(p);
-}
-
-void usage()
-{
-	(void)fprintf(stderr, _("usage: col [-bfpx] [-l nline]\n"));
-	exit(1);
-}
-
-void wrerr()
-{
-	(void)fprintf(stderr, _("col: write error.\n"));
-	exit(1);
-}
-
-void warn(int line)
-{
-	(void)fprintf(stderr,
-	    _("col: warning: can't back up %s.\n"), line < 0 ?
-	    _("past first line") : _("-- line already flushed"));
 }

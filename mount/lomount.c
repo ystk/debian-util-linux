@@ -18,8 +18,8 @@
 
 #include "loop.h"
 #include "lomount.h"
+#include "strutils.h"
 #include "rmd160.h"
-#include "xstrncpy.h"
 #include "nls.h"
 #include "sundries.h"
 #include "xmalloc.h"
@@ -53,7 +53,8 @@ loop_info64_to_old(const struct loop_info64 *info64, struct loop_info *info)
         if (info->lo_device != info64->lo_device ||
             info->lo_rdevice != info64->lo_rdevice ||
             info->lo_inode != info64->lo_inode ||
-            info->lo_offset != info64->lo_offset)
+            info->lo_offset < 0 ||
+	    (uint64_t) info->lo_offset != info64->lo_offset)
                 return -EOVERFLOW;
 
         return 0;
@@ -65,7 +66,7 @@ loop_info64_to_old(const struct loop_info64 *info64, struct loop_info *info)
 struct looplist {
 	int		flag;		/* scanning options */
 	FILE		*proc;		/* /proc/partitions */
-	int		ncur;		/* current possition */
+	int		ncur;		/* current position */
 	int		*minors;	/* ary of minor numbers (when scan whole /dev) */
 	int		nminors;	/* number of items in *minors */
 	char		name[128];	/* device name */
@@ -80,6 +81,62 @@ struct looplist {
 #define LLFLG_PROCFS	(1 << 4)	/* try to found used devices in /proc/partitions */
 #define LLFLG_SUBDIR	(1 << 5)	/* /dev/loop/N */
 #define LLFLG_DFLT	(1 << 6)	/* directly try to check default loops */
+
+/* TODO: move to lib/sysfs.c */
+static char *loopfile_from_sysfs(const char *device)
+{
+	FILE *f;
+	struct stat st;
+	char buf[PATH_MAX], *res = NULL;
+
+	if (stat(device, &st) || !S_ISBLK(st.st_mode))
+		return NULL;
+
+	snprintf(buf, sizeof(buf), _PATH_SYS_DEVBLOCK "/%d:%d/loop/backing_file",
+			major(st.st_rdev), minor(st.st_rdev));
+
+	f = fopen(buf, "r");
+	if (!f)
+		return NULL;
+
+	if (fgets(buf, sizeof(buf), f)) {
+		size_t sz = strlen(buf);
+		if (sz) {
+			buf[sz - 1] = '\0';
+			res = xstrdup(buf);
+		}
+	}
+
+	fclose(f);
+	return res;
+}
+
+char *loopdev_get_loopfile(const char *device)
+{
+	char *res = loopfile_from_sysfs(device);
+
+	if (!res) {
+		struct loop_info lo;
+		struct loop_info64 lo64;
+		int fd;
+
+		if ((fd = open(device, O_RDONLY)) < 0)
+			return NULL;
+
+		if (ioctl(fd, LOOP_GET_STATUS64, &lo64) == 0) {
+			lo64.lo_file_name[LO_NAME_SIZE-2] = '*';
+			lo64.lo_file_name[LO_NAME_SIZE-1] = 0;
+			res = xstrdup((char *) lo64.lo_file_name);
+
+		} else if (ioctl(fd, LOOP_GET_STATUS, &lo) == 0) {
+			lo.lo_name[LO_NAME_SIZE-2] = '*';
+			lo.lo_name[LO_NAME_SIZE-1] = 0;
+			res = xstrdup((char *) lo.lo_name);
+		}
+		close(fd);
+	}
+	return res;
+}
 
 int
 is_loop_device (const char *device) {
@@ -229,12 +286,12 @@ name2minor(int hasprefix, const char *name)
 static int
 cmpnum(const void *p1, const void *p2)
 {
-	return (* (int *) p1) > (* (int *) p2);
+	return (*(int *) p1 > *(int *) p2) - (*(int *) p1 < *(int *) p2);
 }
 
 /*
  * The classic scandir() is more expensive and less portable.
- * We needn't full loop device names -- minor numers (loop<N>)
+ * We needn't full loop device names -- minor numbers (loop<N>)
  * are enough.
  */
 static int
@@ -259,11 +316,16 @@ loop_scandir(const char *dirname, int **ary, int hasprefix)
 		if (n == -1 || n < NLOOPS_DEFAULT)
 			continue;
 		if (count + 1 > arylen) {
+			int *tmp;
+
 			arylen += 1;
-			*ary = *ary ? realloc(*ary, arylen * sizeof(int)) :
-				      malloc(arylen * sizeof(int));
-			if (!*ary)
+
+			tmp = realloc(*ary, arylen * sizeof(int));
+			if (!tmp) {
+				free(*ary);
 				return -1;
+			}
+			*ary = tmp;
 		}
 		(*ary)[count++] = n;
 	}
@@ -324,7 +386,7 @@ looplist_next(struct looplist *ll)
 		ll->flag &= ~LLFLG_DFLT;
 	}
 
-	/* C) the worst posibility, scan all /dev or /dev/loop
+	/* C) the worst possibility, scan all /dev or /dev/loop
 	 */
 	if (!ll->minors) {
 		ll->nminors = (ll->flag & LLFLG_SUBDIR) ?
@@ -341,6 +403,51 @@ looplist_next(struct looplist *ll)
 done:
 	looplist_close(ll);
 	return -1;
+}
+
+/* Find loop device associated with given @filename. Used for unmounting loop
+ * device specified by associated backing file.
+ *
+ * returns: 1 no such device/error
+ *          2 more than one loop device associated with @filename
+ *          0 exactly one loop device associated with @filename
+ *            (@loopdev points to string containing full device name)
+ */
+int
+find_loopdev_by_backing_file(const char *filename, char **loopdev)
+{
+	struct looplist ll;
+	struct stat filestat;
+	int fd;
+	int devs_n = 0;		/* number of loop devices found */
+	char* devname = NULL;
+
+	if (stat(filename, &filestat) == -1) {
+		perror(filename);
+		return 1;
+	}
+
+	if (looplist_open(&ll, LLFLG_USEDONLY) == -1) {
+		error(_("%s: /dev directory does not exist."), progname);
+		return 1;
+	}
+
+	while((devs_n < 2) && (fd = looplist_next(&ll)) != -1) {
+		if (is_associated(fd, &filestat, 0, 0) == 1) {
+			if (!devname)
+				devname = xstrdup(ll.name);
+			devs_n++;
+		}
+		close(fd);
+	}
+	looplist_close(&ll);
+
+	if (devs_n == 1) {
+		*loopdev = devname;
+		return 0;		/* exactly one loopdev */
+	}
+	free(devname);
+	return devs_n ? 2 : 1;		/* more loopdevs or error */
 }
 
 #ifdef MAIN
@@ -375,13 +482,26 @@ show_loop_fd(int fd, char *device) {
 
 	if (ioctl(fd, LOOP_GET_STATUS64, &loopinfo64) == 0) {
 
+		char *lofile = NULL;
+
 		loopinfo64.lo_file_name[LO_NAME_SIZE-2] = '*';
 		loopinfo64.lo_file_name[LO_NAME_SIZE-1] = 0;
 		loopinfo64.lo_crypt_name[LO_NAME_SIZE-1] = 0;
 
+		/* ioctl has limited buffer for backing file name, since
+		 * kernel 2.6.37 the filename is available in sysfs too
+		 */
+		if (strlen((char *) loopinfo64.lo_file_name) == LO_NAME_SIZE - 1)
+			lofile = loopfile_from_sysfs(device);
+		if (!lofile)
+			lofile = (char *) loopinfo64.lo_file_name;
+
 		printf("%s: [%04" PRIx64 "]:%" PRIu64 " (%s)",
 		       device, loopinfo64.lo_device, loopinfo64.lo_inode,
-		       loopinfo64.lo_file_name);
+		       lofile);
+
+		if (lofile != (char *) loopinfo64.lo_file_name)
+			free(lofile);
 
 		if (loopinfo64.lo_offset)
 			printf(_(", offset %" PRIu64 ), loopinfo64.lo_offset);
@@ -491,6 +611,7 @@ show_associated_loop_devices(char *filename, unsigned long long offset, int isof
 
 	return 0;
 }
+
 
 #endif /* MAIN */
 
@@ -874,7 +995,7 @@ set_loop(const char *device, const char *file, unsigned long long offset,
 	}
 
 	/*
-	 * HACK: here we're leeking a file descriptor,
+	 * HACK: here we're leaking a file descriptor,
 	 * but mount is a short-lived process anyway.
 	 */
 	if (!(*options & SETLOOP_AUTOCLEAR))
@@ -941,6 +1062,13 @@ find_unused_loop_device (void) {
 	return 0;
 }
 
+int
+find_loopdev_by_backing_file(const char *filename, char **loopdev)
+{
+	mutter();
+	return 1;
+}
+
 #endif /* !LOOP_SET_FD */
 
 #ifdef MAIN
@@ -951,33 +1079,36 @@ find_unused_loop_device (void) {
 #include <stdarg.h>
 
 static void
-usage(void) {
-	fprintf(stderr, _("\nUsage:\n"
-  " %1$s loop_device                             give info\n"
-  " %1$s -a | --all                              list all used\n"
-  " %1$s -d | --detach <loopdev> [<loopdev> ...] delete\n"
-  " %1$s -f | --find                             find unused\n"
-  " %1$s -c | --set-capacity <loopdev>           resize\n"
-  " %1$s -j | --associated <file> [-o <num>]     list all associated with <file>\n"
-  " %1$s [ options ] {-f|--find|loopdev} <file>  setup\n"),
-		progname);
+usage(FILE *out) {
 
-	fprintf(stderr, _("\nOptions:\n"
-  " -e | --encryption <type> enable data encryption with specified <name/num>\n"
-  " -h | --help              this help\n"
-  " -o | --offset <num>      start at offset <num> into file\n"
-  "      --sizelimit <num>   loop limited to only <num> bytes of the file\n"
-  " -p | --pass-fd <num>     read passphrase from file descriptor <num>\n"
-  " -r | --read-only         setup read-only loop device\n"
-  "      --show              print device name (with -f <file>)\n"
-  " -N | --nohashpass        Do not hash the given password (Debian hashes)\n"
-  " -k | --keybits <num>     specify number of bits in the hashed key given\n"
-  "                          to the cipher.  Some ciphers support several key\n"
-  "                          sizes and might be more efficient with a smaller\n"
-  "                          key size.  Key sizes < 128 are generally not\n"
-  "                          recommended\n"
-  " -v | --verbose           verbose mode\n\n"));
-	exit(1);
+  fputs(_("\nUsage:\n"), out);
+  fprintf(out,
+	_(" %1$s loop_device                             give info\n"
+	  " %1$s -a | --all                              list all used\n"
+	  " %1$s -d | --detach <loopdev> [<loopdev> ...] delete\n"
+	  " %1$s -f | --find                             find unused\n"
+	  " %1$s -c | --set-capacity <loopdev>           resize\n"
+	  " %1$s -j | --associated <file> [-o <num>]     list all associated with <file>\n"
+	  " %1$s [options] {-f|--find|loopdev} <file>    setup\n"),
+	progname);
+
+  fputs(_("\nOptions:\n"), out);
+  fputs(_(" -e, --encryption <type> enable data encryption with specified <name/num>\n"
+	  " -h, --help              this help\n"
+	  " -o, --offset <num>      start at offset <num> into file\n"
+	  "     --sizelimit <num>   loop limited to only <num> bytes of the file\n"
+	  " -p, --pass-fd <num>     read passphrase from file descriptor <num>\n"
+	  " -r, --read-only         setup read-only loop device\n"
+	  "     --show              print device name (with -f <file>)\n"
+	  " -N | --nohashpass       Do not hash the given password (Debian hashes)\n"
+	  " -k | --keybits <num>    specify number of bits in the hashed key given\n"
+	  "                         to the cipher.  Some ciphers support several key\n"
+	  "                         sizes and might be more efficient with a smaller\n"
+	  "                         key size.  Key sizes < 128 are generally not\n"
+	  "                         recommended\n"
+	  " -v, --verbose           verbose mode\n\n"), out);
+
+	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
  }
 
 int
@@ -989,10 +1120,11 @@ main(int argc, char **argv) {
 	int showdev = 0;
 	int ro = 0;
 	int pfd = -1;
+	uintmax_t off = 0, slimit = 0;
 	int keysz = 0;
 	int hash_pass = 1;
-	unsigned long long off, slimit;
-	struct option longopts[] = {
+
+	static const struct option longopts[] = {
 		{ "all", 0, 0, 'a' },
 		{ "set-capacity", 0, 0, 'c' },
 		{ "detach", 0, 0, 'd' },
@@ -1017,8 +1149,6 @@ main(int argc, char **argv) {
 	textdomain(PACKAGE);
 
 	capacity = delete = find = all = 0;
-	off = 0;
-        slimit = 0;
 	assoc = offset = sizelimit = encryption = passfd = NULL;
 	keysize = NULL;
 
@@ -1048,6 +1178,9 @@ main(int argc, char **argv) {
 		case 'f':
 			find = 1;
 			break;
+		case 'h':
+			usage(stdout);
+			break;
 		case 'j':
 			assoc = optarg;
 		case 'k':
@@ -1074,39 +1207,44 @@ main(int argc, char **argv) {
                         break;
 
 		default:
-			usage();
+			usage(stderr);
 		}
 	}
 
 	if (argc == 1) {
-		usage();
+	    usage(stderr);
 	} else if (delete) {
 		if (argc < optind+1 || encryption || offset || sizelimit ||
 		    capacity || find || all || showdev || assoc || ro)
-			usage();
+			usage(stderr);
 	} else if (find) {
 		if (capacity || all || assoc || argc < optind || argc > optind+1)
-			usage();
+			usage(stderr);
 	} else if (all) {
-		if (argc > 2)
-			usage();
+		/* only -v is allowed */
+		if ((argc == 3 && verbose == 0) || argc > 3)
+			usage(stderr);
 	} else if (assoc) {
 		if (capacity || encryption || showdev || passfd || ro)
-			usage();
+			usage(stderr);
 	} else if (capacity) {
 		if (argc != optind + 1 || encryption || offset || sizelimit ||
 		    showdev || ro)
-			usage();
+			usage(stderr);
 	} else {
 		if (argc < optind+1 || argc > optind+2)
-			usage();
+			usage(stderr);
 	}
 
-	if (offset && sscanf(offset, "%llu", &off) != 1)
-		usage();
-
-	if (sizelimit && sscanf(sizelimit, "%llu", &slimit) != 1)
-		usage();
+	if (offset && strtosize(offset, &off)) {
+		error(_("%s: invalid offset '%s' specified"), progname, offset);
+		usage(stderr);
+	}
+	if (sizelimit && strtosize(sizelimit, &slimit)) {
+		error(_("%s: invalid sizelimit '%s' specified"),
+					progname, sizelimit);
+		usage(stderr);
+	}
 
 	if (all)
 		return show_used_loop_devices();
@@ -1140,9 +1278,9 @@ main(int argc, char **argv) {
 		res = show_loop(device);
 	else {
 		if (passfd && sscanf(passfd, "%d", &pfd) != 1)
-			usage();
+			usage(stderr);
 		if (keysize && sscanf(keysize,"%d",&keysz) != 1)
-			usage();
+			usage(stderr);
 		do {
 			res = set_loop(device, file, off, slimit, encryption, pfd, &ro, keysz, hash_pass);
 			if (res == 2 && find) {

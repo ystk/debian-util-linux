@@ -60,7 +60,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+
 #include "lp.h"
+#include "xalloc.h"
 #include "nls.h"
 
 struct command {
@@ -81,17 +83,7 @@ print_usage(char *progname) {
 
 static void
 print_version(char *progname) {
-  printf("%s (%s)\n", progname, PACKAGE_STRING);
-}
-
-static void *
-mylloc(long size) {
-  void *ptr;
-  if(!(ptr = (void*)malloc(size))) {
-    perror(_("malloc error"));
-    exit(2);
-  }
-  return ptr;
+  printf(_("%s (%s)\n"), progname, PACKAGE_STRING);
 }
 
 static char *progname;
@@ -131,7 +123,7 @@ main (int argc, char ** argv) {
 
   if (argc < 2) print_usage(progname);
 
-  cmdst = cmds = mylloc(sizeof(struct command));
+  cmdst = cmds = xmalloc(sizeof(struct command));
   cmds->next = 0;
 
   show_irq = 1;
@@ -143,31 +135,31 @@ main (int argc, char ** argv) {
     case 'i':
       cmds->op = LPSETIRQ;
       cmds->val = get_val(optarg);
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
     case 't':
       cmds->op = LPTIME;
       cmds->val = get_val(optarg);
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
     case 'c':
       cmds->op = LPCHAR;
       cmds->val = get_val(optarg);
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
     case 'w':
       cmds->op = LPWAIT;
       cmds->val = get_val(optarg);
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
     case 'a':
       cmds->op = LPABORT;
       cmds->val = get_onoff(optarg);
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
     case 'q':
@@ -180,20 +172,20 @@ main (int argc, char ** argv) {
     case 'o':
       cmds->op = LPABORTOPEN;
       cmds->val = get_onoff(optarg);
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
     case 'C':
       cmds->op = LPCAREFUL;
       cmds->val = get_onoff(optarg);
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
     case 's':
       show_irq = 0;
       cmds->op = LPGETSTATUS;
       cmds->val = 0;
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
 #endif
@@ -201,7 +193,7 @@ main (int argc, char ** argv) {
     case 'r':
       cmds->op = LPRESET;
       cmds->val = 0;
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
 #endif
@@ -210,7 +202,7 @@ main (int argc, char ** argv) {
       /* Note: this will do the wrong thing on 2.0.36 when compiled under 2.2.x */
       cmds->op = LPTRUSTIRQ;
       cmds->val = get_onoff(optarg);
-      cmds->next = mylloc(sizeof(struct command));
+      cmds->next = xmalloc(sizeof(struct command));
       cmds = cmds->next; cmds->next = 0;
       break;
 #endif
@@ -256,9 +248,9 @@ main (int argc, char ** argv) {
       status = 0xdeadbeef;
       retval = ioctl(fd, LPGETSTATUS - offset, &status);
       if (retval < 0)
-      	perror("LPGETSTATUS error");
+	perror(_("LPGETSTATUS error"));
       else {
-        if (status == 0xdeadbeef)	/* a few 1.1.7x kernels will do this */
+        if (status == (int) 0xdeadbeef)	/* a few 1.1.7x kernels will do this */
           status = retval;
 	printf(_("%s status is %d"), filename, status);
 	if (!(status & LP_PBUSY)) printf(_(", busy"));
@@ -271,7 +263,7 @@ main (int argc, char ** argv) {
     } else
 #endif /* LPGETSTATUS */
     if (ioctl(fd, cmds->op - offset, cmds->val) < 0) {
-      perror("tunelp: ioctl");
+      perror(_("tunelp: ioctl failed"));
     }
     cmdst = cmds;
     cmds = cmds->next;
@@ -285,7 +277,7 @@ main (int argc, char ** argv) {
       perror(_("LPGETIRQ error"));
       exit(4);
     }
-    if (irq == 0xdeadbeef)		/* up to 1.1.77 will do this */
+    if (irq == (int) 0xdeadbeef)		/* up to 1.1.77 will do this */
       irq = retval;
     if (irq)
       printf(_("%s using IRQ %d\n"), filename, irq);

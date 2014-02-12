@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# This file is part of util-linux-ng.
+# This file is part of util-linux.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,14 +37,12 @@ modprobe scsi_debug dev_size_mb=50 sector_size=512 physblk_exp=3
 sleep 3
 
 DEVNAME=$(grep scsi_debug /sys/block/*/device/model | awk -F '/' '{print $4}')
-[ "x${DEVNAME}" == "x" ] && ts_die "Cannot found device"
+[ "x${DEVNAME}" == "x" ] && ts_die "Cannot find device"
 
 DEVICE="/dev/${DEVNAME}"
 
 ts_log "Create partitions"
 $TS_CMD_FDISK ${DEVICE} >> $TS_OUTPUT 2>&1 <<EOF
-c
-u
 n
 p
 1
@@ -84,7 +82,8 @@ cat /sys/block/${DEVNAME}/${DEVNAME}{1,2,3,4,5,6,7}/alignment_offset >> $TS_OUTP
 sleep 3
 rmmod scsi_debug
 
-# remove disk ID
+# remove device name used and disk ID
+sed -i -e "s/\/dev\/${DEVNAME}/\/dev\/.../g" $TS_OUTPUT
 sed -i -e 's/Disk identifier:.*//g' $TS_OUTPUT
 sed -i -e 's/Building a new.*//g' $TS_OUTPUT
 

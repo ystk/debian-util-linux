@@ -53,6 +53,7 @@
 #include "c.h"
 #include "kill.h"
 #include "nls.h"
+#include "strutils.h"
 
 struct signv {
 	char *name;
@@ -152,6 +153,11 @@ extern int *get_pids (char *, int);
 
 static char *progname;
 
+#ifdef HAVE_SIGQUEUE
+static int use_sigval;
+static union sigval sigdata;
+#endif
+
 int main (int argc, char *argv[])
 {
     int errors, numsig, pid;
@@ -231,6 +237,17 @@ int main (int argc, char *argv[])
 	    }
 	    continue;
 	}
+	if (! strcmp (arg, "-q")) {
+	    if (argc < 2)
+		return usage (1);
+	    argc--, argv++;
+	    arg = *argv;
+#ifdef HAVE_SIGQUEUE
+	    sigdata.sival_int = strtol_or_err(arg, _("failed to parse sigval"));
+	    use_sigval = 1;
+#endif
+	    continue;
+	}
 	/*  `arg' begins with a dash but is not a known option.
 	    so it's probably something like -HUP, or -1/-n
 	    try to deal with it.
@@ -279,13 +296,49 @@ int main (int argc, char *argv[])
     return (errors);
 }
 
+#ifdef SIGRTMIN
+int rtsig_to_signum(char *sig)
+{
+	int num, maxi = 0;
+	char *ep = NULL;
+
+	if (strncasecmp(sig, "min+", 4) == 0)
+		sig += 4;
+	else if (strncasecmp(sig, "max-", 4) == 0) {
+		sig += 4;
+		maxi = 1;
+	}
+
+	if (!isdigit(*sig))
+		return -1;
+
+	errno = 0;
+	num = strtol(sig, &ep, 10);
+	if (!ep || sig == ep || errno || num < 0)
+		return -1;
+
+	num = maxi ? SIGRTMAX - num : SIGRTMIN + num;
+
+	if (num < SIGRTMIN || num > SIGRTMAX)
+		return -1;
+
+	return num;
+}
+#endif
 
 int signame_to_signum (char *sig)
 {
-    int n;
+    size_t n;
 
     if (! strncasecmp (sig, "sig", 3))
 	sig += 3;
+
+#ifdef SIGRTMIN
+    /* RT signals */
+    if (!strncasecmp(sig, "rt", 2))
+	return rtsig_to_signum(sig + 2);
+#endif
+    /* Normal sugnals */
     for (n = 0; n < ARRAY_SIZE(sys_signame); n++) {
 	if (! strcasecmp (sys_signame[n].name, sig))
 	    return sys_signame[n].val;
@@ -317,7 +370,7 @@ void nosig (char *name)
 
 void printsig (int sig)
 {
-    int n;
+    size_t n;
 
     for (n = 0; n < ARRAY_SIZE(sys_signame); n++) {
 	if (sys_signame[n].val == sig) {
@@ -325,13 +378,18 @@ void printsig (int sig)
 	    return;
 	}
     }
+#ifdef SIGRTMIN
+    if (sig >= SIGRTMIN && sig <= SIGRTMAX) {
+	printf ("RT%d\n", sig - SIGRTMIN);
+	return;
+    }
+#endif
     printf("%d\n", sig);
 }
 
 void printsignals (FILE *fp)
 {
-    int n, lth;
-    int lpos = 0;
+    size_t n, lth, lpos = 0;
 
     for (n = 0; n < ARRAY_SIZE(sys_signame); n++) {
 	lth = 1+strlen(sys_signame[n].name);
@@ -343,6 +401,9 @@ void printsignals (FILE *fp)
 	lpos += lth;
 	fputs (sys_signame[n].name, fp);
     }
+#ifdef SIGRTMIN
+    fputs (" RT<N> RTMIN+<N> RTMAX-<N>", fp);
+#endif
     fputc ('\n', fp);
 }
 
@@ -358,11 +419,20 @@ int usage (int status)
 
 int kill_verbose (char *procname, int pid, int sig)
 {
+    int rc;
+
     if (sig < 0) {
 	printf ("%d\n", pid);
 	return 0;
     }
-    if (kill (pid, sig) < 0) {
+#ifdef HAVE_SIGQUEUE
+    if (use_sigval)
+	rc = sigqueue(pid, sig, sigdata);
+    else
+#endif
+	rc = kill (pid, sig);
+
+    if (rc < 0) {
 	fprintf (stderr, "%s ", progname);
 	perror (procname);
 	return 1;

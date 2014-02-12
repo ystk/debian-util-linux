@@ -10,7 +10,7 @@
 .\"  $Revision: 1.1 $
 .\"  $Date: 1995/03/12 01:29:16 $
 .\"
-.TH CHFN 1 "October 13 1994" "chfn" "Linux Reference Manual"
+.TH CHFN 1 "July 2009" "util-linux" "User Commands"
 .SH NAME
 chfn \- change your finger information
 .SH SYNOPSIS
@@ -38,6 +38,10 @@ program.  The Linux
 command will display four pieces of information that can be changed by
 .BR chfn :
 your real name, your work room and phone, and your home phone.
+
+.B chfn
+is used to change local entries only. Use ypchfn, lchfn or any other
+implementation for non-local entries.
 .SS COMMAND LINE
 Any of the four pieces of information can be specified on the command
 line.  If no information is given on the command line,
@@ -74,5 +78,5 @@ Print version information and exit.
 .SH AUTHOR
 Salvatore Valente <svalente@mit.edu>
 .SH AVAILABILITY
-The chfn command is part of the util-linux-ng package and is available from
-ftp://ftp.kernel.org/pub/linux/utils/util-linux-ng/.
+The chfn command is part of the util-linux package and is available from
+ftp://ftp.kernel.org/pub/linux/utils/util-linux/.

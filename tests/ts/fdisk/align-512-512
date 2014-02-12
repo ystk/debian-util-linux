@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# This file is part of util-linux-ng.
+# This file is part of util-linux.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@ DEVICE=$(ts_device_init 50)
 
 ts_log "Create partitions"
 $TS_CMD_FDISK ${DEVICE} >> $TS_OUTPUT 2>&1 <<EOF
-c
-u
 n
 p
 1
@@ -67,7 +65,7 @@ EOF
 
 ts_device_deinit $DEVICE
 
-# remove disk ID
+# remove disk ID 
 sed -i -e 's/Disk identifier:.*//g' $TS_OUTPUT
 sed -i -e 's/Building a new.*//g' $TS_OUTPUT
 

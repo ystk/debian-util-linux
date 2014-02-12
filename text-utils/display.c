@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "hexdump.h"
+#include "xalloc.h"
 
 static void doskip(const char *, int);
 static u_char *get(void);
@@ -54,11 +55,11 @@ static off_t address;			/* address/offset in stream */
 static off_t eaddress;			/* end address */
 
 static inline void
-print(PR *pr, u_char *bp) {
+print(PR *pr, unsigned char *bp) {
 
 	switch(pr->flags) {
 	case F_ADDRESS:
-		(void)printf(pr->fmt, (quad_t)address);
+		(void)printf(pr->fmt, (int64_t)address);
 		break;
 	case F_BPAD:
 		(void)printf(pr->fmt, "");
@@ -89,23 +90,23 @@ print(PR *pr, u_char *bp) {
 	    {
 		short sval;	/* int16_t */
 		int ival;	/* int32_t */
-		long long Lval;	/* int64_t, quad_t */
+		long long Lval;	/* int64_t, int64_t */
 
 		switch(pr->bcnt) {
 		case 1:
-			(void)printf(pr->fmt, (quad_t)*bp);
+			(void)printf(pr->fmt, (int64_t)*bp);
 			break;
 		case 2:
 			memmove(&sval, bp, sizeof(sval));
-			(void)printf(pr->fmt, (quad_t)sval);
+			(void)printf(pr->fmt, (int64_t)sval);
 			break;
 		case 4:
 			memmove(&ival, bp, sizeof(ival));
-			(void)printf(pr->fmt, (quad_t)ival);
+			(void)printf(pr->fmt, (int64_t)ival);
 			break;
 		case 8:
 			memmove(&Lval, bp, sizeof(Lval));
-			(void)printf(pr->fmt, (quad_t)Lval);
+			(void)printf(pr->fmt, (int64_t)Lval);
 			break;
 		}
 		break;
@@ -126,23 +127,23 @@ print(PR *pr, u_char *bp) {
 	    {
 		unsigned short sval;	/* u_int16_t */
 		unsigned int ival;	/* u_int32_t */
-		unsigned long long Lval;/* u_int64_t, u_quad_t */
+		unsigned long long Lval;/* u_int64_t, u_int64_t */
 
 		switch(pr->bcnt) {
 		case 1:
-			(void)printf(pr->fmt, (u_quad_t)*bp);
+			(void)printf(pr->fmt, (uint64_t)*bp);
 			break;
 		case 2:
 			memmove(&sval, bp, sizeof(sval));
-			(void)printf(pr->fmt, (u_quad_t)sval);
+			(void)printf(pr->fmt, (uint64_t)sval);
 			break;
 		case 4:
 			memmove(&ival, bp, sizeof(ival));
-			(void)printf(pr->fmt, (u_quad_t)ival);
+			(void)printf(pr->fmt, (uint64_t)ival);
 			break;
 		case 8:
 			memmove(&Lval, bp, sizeof(Lval));
-			(void)printf(pr->fmt, (u_quad_t)Lval);
+			(void)printf(pr->fmt, (uint64_t)Lval);
 			break;
 		}
 		break;
@@ -173,9 +174,9 @@ void display(void)
 	register FU *fu;
 	register PR *pr;
 	register int cnt;
-	register u_char *bp;
+	register unsigned char *bp;
 	off_t saveaddress;
-	u_char savech = 0, *savebp;
+	unsigned char savech = 0, *savebp;
 
 	while ((bp = get()) != NULL)
 	    for (fs = fshead, savebp = bp, saveaddress = address; fs;
@@ -211,7 +212,7 @@ void display(void)
 		for (pr = endfu->nextpr; pr; pr = pr->nextpr)
 			switch(pr->flags) {
 			case F_ADDRESS:
-				(void)printf(pr->fmt, (quad_t)eaddress);
+				(void)printf(pr->fmt, (int64_t)eaddress);
 				break;
 			case F_TEXT:
 				(void)printf("%s", pr->fmt);
@@ -227,13 +228,13 @@ get(void)
 {
 	static int ateof = 1;
 	static u_char *curp, *savp;
-	int n;
+	ssize_t n;
 	int need, nread;
 	u_char *tmpp;
 
 	if (!curp) {
-		curp = emalloc(blocksize);
-		savp = emalloc(blocksize);
+		curp = xcalloc(1, blocksize);
+		savp = xcalloc(1, blocksize);
 	} else {
 		tmpp = curp;
 		curp = savp;
@@ -260,12 +261,11 @@ get(void)
 			eaddress = address + nread;
 			return(curp);
 		}
-		n = fread((char *)curp + nread, sizeof(u_char),
+		n = fread((char *)curp + nread, sizeof(unsigned char),
 		    length == -1 ? need : MIN(length, need), stdin);
 		if (!n) {
 			if (ferror(stdin))
-				(void)fprintf(stderr, "hexdump: %s: %s\n",
-				    _argv[-1], strerror(errno));
+				warn("%s", _argv[-1]);
 			ateof = 1;
 			continue;
 		}
@@ -303,9 +303,8 @@ int next(char **argv)
 	for (;;) {
 		if (*_argv) {
 			if (!(freopen(*_argv, "r", stdin))) {
-				(void)fprintf(stderr, "hexdump: %s: %s\n",
-				    *_argv, strerror(errno));
-				exitval = 1;
+				warn("%s", *_argv);
+				exitval = EXIT_FAILURE;
 				++_argv;
 				continue;
 			}
@@ -331,11 +330,8 @@ doskip(const char *fname, int statok)
 	struct stat sbuf;
 
 	if (statok) {
-		if (fstat(fileno(stdin), &sbuf)) {
-			(void)fprintf(stderr, "hexdump: %s: %s.\n",
-			    fname, strerror(errno));
-			exit(1);
-		}
+		if (fstat(fileno(stdin), &sbuf))
+		        err(EXIT_FAILURE, "%s", fname);
 		if (S_ISREG(sbuf.st_mode) && skip > sbuf.st_size) {
 		  /* If size valid and skip >= size */
 			skip -= sbuf.st_size;
@@ -344,26 +340,8 @@ doskip(const char *fname, int statok)
 		}
 	}
 	/* sbuf may be undefined here - do not test it */
-	if (fseek(stdin, skip, SEEK_SET)) {
-		(void)fprintf(stderr, "hexdump: %s: %s.\n",
-		    fname, strerror(errno));
-		exit(1);
-	}
+	if (fseek(stdin, skip, SEEK_SET))
+	        err(EXIT_FAILURE, "%s", fname);
 	address += skip;
 	skip = 0;
-}
-
-void *
-emalloc(int sz) {
-	void *p;
-
-	if (!(p = malloc((u_int)sz)))
-		nomem();
-	memset(p, 0, sz);
-	return(p);
-}
-
-void nomem() {
-	(void)fprintf(stderr, "hexdump: %s.\n", strerror(errno));
-	exit(1);
 }

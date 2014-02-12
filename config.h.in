@@ -7,11 +7,17 @@
    language is requested. */
 #undef ENABLE_NLS
 
-/* Define to 1 if you have the <blkid/blkid.h> header file. */
-#undef HAVE_BLKID_BLKID_H
+/* search path for fs helpers */
+#undef FS_SEARCH_PATH
 
-/* Define to 1 if you have the <blkid.h> header file. */
-#undef HAVE_BLKID_H
+/* Define to 1 if you have the <asm/io.h> header file. */
+#undef HAVE_ASM_IO_H
+
+/* Define to 1 if the system has the type `cpu_set_t'. */
+#undef HAVE_CPU_SET_T
+
+/* Define to 1 if you have the <crypt.h> header file. */
+#undef HAVE_CRYPT_H
 
 /* Define if the GNU dcgettext() function is already present or preinstalled.
    */
@@ -33,6 +39,14 @@
    you don't. */
 #undef HAVE_DECL_ADDR_NO_RANDOMIZE
 
+/* Define to 1 if you have the declaration of `CPU_ALLOC', and to 0 if you
+   don't. */
+#undef HAVE_DECL_CPU_ALLOC
+
+/* Define to 1 if you have the declaration of `dirfd', and to 0 if you don't.
+   */
+#undef HAVE_DECL_DIRFD
+
 /* Define to 1 if you have the declaration of `FDPIC_FUNCPTRS', and to 0 if
    you don't. */
 #undef HAVE_DECL_FDPIC_FUNCPTRS
@@ -49,6 +63,10 @@
    you don't. */
 #undef HAVE_DECL_STICKY_TIMEOUTS
 
+/* Define to 1 if you have the declaration of `UNAME26', and to 0 if you
+   don't. */
+#undef HAVE_DECL_UNAME26
+
 /* Define to 1 if you have the declaration of `WHOLE_SECONDS', and to 0 if you
    don't. */
 #undef HAVE_DECL_WHOLE_SECONDS
@@ -57,11 +75,23 @@
    if you don't. */
 #undef HAVE_DECL__NL_TIME_WEEK_1STDAY
 
+/* Define to 1 if you have the `dirfd' function. */
+#undef HAVE_DIRFD
+
+/* Define to 1 if `dd_fd' is a member of `DIR'. */
+#undef HAVE_DIR_DD_FD
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have the `err' function. */
+#undef HAVE_ERR
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
+
+/* Define to 1 if you have the `errx' function. */
+#undef HAVE_ERRX
 
 /* Define to 1 if you have the <err.h> header file. */
 #undef HAVE_ERR_H
@@ -93,6 +123,9 @@
 /* Define to 1 if you have the `getdtablesize' function. */
 #undef HAVE_GETDTABLESIZE
 
+/* Define to 1 if you have the `getexecname' function. */
+#undef HAVE_GETEXECNAME
+
 /* Define to 1 if you have the `getmntinfo' function. */
 #undef HAVE_GETMNTINFO
 
@@ -120,6 +153,12 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `ioperm' function. */
+#undef HAVE_IOPERM
+
+/* Define to 1 if you have the `iopl' function. */
+#undef HAVE_IOPL
+
 /* Define to 1 if you have the `jrand48' function. */
 #undef HAVE_JRAND48
 
@@ -135,8 +174,8 @@
 /* Define to 1 if you have the -lblkid. */
 #undef HAVE_LIBBLKID
 
-/* Define to 1 if you have the in-tree libblkid. */
-#undef HAVE_LIBBLKID_INTERNAL
+/* use libmount for mount(8) */
+#undef HAVE_LIBMOUNT_MOUNT
 
 /* Define to 1 if you have the `ncurses' library (-lncurses). */
 #undef HAVE_LIBNCURSES
@@ -150,6 +189,9 @@
 /* Define to 1 if you have the `termcap' library (-ltermcap). */
 #undef HAVE_LIBTERMCAP
 
+/* Define to 1 if you have the `utempter' library (-lutempter). */
+#undef HAVE_LIBUTEMPTER
+
 /* Define to 1 if you have the `util' library (-lutil). */
 #undef HAVE_LIBUTIL
 
@@ -161,6 +203,9 @@
 
 /* Define to 1 if you have the <linux/blkpg.h> header file. */
 #undef HAVE_LINUX_BLKPG_H
+
+/* Define to 1 if you have the <linux/cdrom.h> header file. */
+#undef HAVE_LINUX_CDROM_H
 
 /* Define to 1 if you have the <linux/compiler.h> header file. */
 #undef HAVE_LINUX_COMPILER_H
@@ -192,6 +237,9 @@
 /* Define to 1 if you have the <locale.h> header file. */
 #undef HAVE_LOCALE_H
 
+/* Define to 1 if the system has the type `loff_t'. */
+#undef HAVE_LOFF_T
+
 /* Define to 1 if you have the `lseek64' function. */
 #undef HAVE_LSEEK64
 
@@ -206,6 +254,9 @@
 
 /* Define to 1 if you have the `nanosleep' function. */
 #undef HAVE_NANOSLEEP
+
+/* Define to 1 if you have the <ncursesw/ncurses.h> header file. */
+#undef HAVE_NCURSESW_NCURSES_H
 
 /* Define to 1 if you have the <ncurses.h> header file. */
 #undef HAVE_NCURSES_H
@@ -225,6 +276,9 @@
 /* Define to 1 if you have the `openat' function. */
 #undef HAVE_OPENAT
 
+/* Define to 1 if you have the <paths.h> header file. */
+#undef HAVE_PATHS_H
+
 /* Define to 1 if you have the `personality' function. */
 #undef HAVE_PERSONALITY
 
@@ -233,6 +287,9 @@
 
 /* Define to 1 if you have the `prctl' function. */
 #undef HAVE_PRCTL
+
+/* Define if program_invocation_short_name is defined */
+#undef HAVE_PROGRAM_INVOCATION_SHORT_NAME
 
 /* Define to 1 if you have the <pty.h> header file. */
 #undef HAVE_PTY_H
@@ -246,6 +303,12 @@
 /* Define if struct sockaddr contains sa_len */
 #undef HAVE_SA_LEN
 
+/* scanf %as modifier */
+#undef HAVE_SCANF_AS_MODIFIER
+
+/* scanf %ms modifier */
+#undef HAVE_SCANF_MS_MODIFIER
+
 /* Define to 1 if you have the `security_get_initial_context' function. */
 #undef HAVE_SECURITY_GET_INITIAL_CONTEXT
 
@@ -257,6 +320,15 @@
 
 /* Define to 1 if you have the `setresuid' function. */
 #undef HAVE_SETRESUID
+
+/* Define to 1 if you have the `sigqueue' function. */
+#undef HAVE_SIGQUEUE
+
+/* Define to 1 if you have the <slang.h> header file. */
+#undef HAVE_SLANG_H
+
+/* Define to 1 if you have the <slang/slang.h> header file. */
+#undef HAVE_SLANG_SLANG_H
 
 /* Define to 1 if you have the <slang/slcurses.h> header file. */
 #undef HAVE_SLANG_SLCURSES_H
@@ -279,8 +351,20 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the `strnchr' function. */
+#undef HAVE_STRNCHR
+
+/* Define to 1 if you have the `strndup' function. */
+#undef HAVE_STRNDUP
+
+/* Define to 1 if you have the `strnlen' function. */
+#undef HAVE_STRNLEN
+
 /* Define to 1 if you have the `strtoull' function. */
 #undef HAVE_STRTOULL
+
+/* Define to 1 if `st_mtim.tv_nsec' is a member of `struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
 
 /* Define to 1 if `c_line' is a member of `struct termios'. */
 #undef HAVE_STRUCT_TERMIOS_C_LINE
@@ -296,6 +380,9 @@
 
 /* Define to 1 if you have the <sys/file.h> header file. */
 #undef HAVE_SYS_FILE_H
+
+/* Define to 1 if you have the <sys/ioccom.h> header file. */
+#undef HAVE_SYS_IOCCOM_H
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #undef HAVE_SYS_IOCTL_H
@@ -369,16 +456,16 @@
 /* Define to 1 if you want to use uuid daemon. */
 #undef HAVE_UUIDD
 
-/* Define to 1 if you have the <uuid.h> header file. */
-#undef HAVE_UUID_H
+/* Define to 1 if you have the `warn' function. */
+#undef HAVE_WARN
 
-/* Define to 1 if you have the <uuid/uuid.h> header file. */
-#undef HAVE_UUID_UUID_H
+/* Define to 1 if you have the `warnx' function. */
+#undef HAVE_WARNX
 
 /* Do we have wide character support? */
 #undef HAVE_WIDECHAR
 
-/* Do we have __progname? */
+/* Define if __progname is defined */
 #undef HAVE___PROGNAME
 
 /* Define to 1 if you have the `__secure_getenv' function. */
@@ -389,6 +476,9 @@
 
 /* libblkid version string */
 #undef LIBBLKID_VERSION
+
+/* libmount version string */
+#undef LIBMOUNT_VERSION
 
 /* Should login chown /dev/vcsN? */
 #undef LOGIN_CHOWN_VCS
@@ -402,6 +492,9 @@
 
 /* Do we need -lcrypt? */
 #undef NEED_LIBCRYPT
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#undef NO_MINUS_C_MINUS_O
 
 /* Should chsh allow only shells in /etc/shells? */
 #undef ONLY_LISTED_SHELLS

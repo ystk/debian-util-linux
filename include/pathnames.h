@@ -6,11 +6,17 @@
 #ifndef PATHNAMES_H
 #define PATHNAMES_H
 
+#ifdef HAVE_PATHS_H
 #include <paths.h>
+#endif
 
 #ifndef __STDC__
 # error "we need an ANSI compiler"
 #endif
+
+/* used by kernel in /proc (e.g. /proc/swaps) for deleted files */
+#define PATH_DELETED_SUFFIX	"\\040(deleted)"
+#define PATH_DELETED_SUFFIX_SZ	(sizeof(PATH_DELETED_SUFFIX) - 1)
 
 /* DEFPATHs from <paths.h> don't include /usr/local */
 #undef _PATH_DEFPATH
@@ -62,6 +68,9 @@
 #define _PATH_SHADOW_GTMP       "/etc/sgtmp"
 #define _PATH_SHADOW_GTMPTMP    "/etc/sgtmptmp"
 
+/* used in term-utils/agetty.c */
+#define _PATH_ISSUE		"/etc/issue"
+
 /* used in misc-utils/look.c */
 #define _PATH_WORDS             "/usr/share/dict/words"
 #define _PATH_WORDS_ALT         "/usr/share/dict/web2"
@@ -75,6 +84,10 @@
 #define _PATH_PROC_MOUNTS	"/proc/mounts"
 #define _PATH_PROC_PARTITIONS	"/proc/partitions"
 #define _PATH_PROC_DEVICES	"/proc/devices"
+#define _PATH_PROC_MOUNTINFO	"/proc/self/mountinfo"
+
+#define _PATH_SYS_BLOCK		"/sys/block"
+#define _PATH_SYS_DEVBLOCK	"/sys/dev/block"
 
 #ifndef _PATH_MOUNTED
 # ifdef MOUNTED					/* deprecated */
@@ -92,10 +105,15 @@
 # endif
 #endif
 
+#define _PATH_MNTTAB_DIR	_PATH_MNTTAB ".d"
+
 #define _PATH_MOUNTED_LOCK	_PATH_MOUNTED "~"
 #define _PATH_MOUNTED_TMP	_PATH_MOUNTED ".tmp"
 
 #ifndef _PATH_DEV
+  /*
+   * The tailing '/' in _PATH_DEV is there for compatibility with libc.
+   */
 # define _PATH_DEV		"/dev/"
 #endif
 
@@ -107,6 +125,15 @@
 #define _PATH_DEV_BYUUID	"/dev/disk/by-uuid"
 #define _PATH_DEV_BYID		"/dev/disk/by-id"
 #define _PATH_DEV_BYPATH	"/dev/disk/by-path"
+
+/* hwclock paths */
+#define _PATH_ADJPATH		"/etc/adjtime"
+#define _PATH_LASTDATE		"/var/lib/lastdate"
+#ifdef __ia64__
+# define _PATH_RTC_DEV		"/dev/efirtc"
+#else
+# define _PATH_RTC_DEV		"/dev/rtc"
+#endif
 
 #endif /* PATHNAMES_H */
 

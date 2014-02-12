@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2007 Karel Zak <kzak@redhat.com>
 #
-# This file is part of util-linux-ng.
+# This file is part of util-linux.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,10 @@ TS_DESC="mtab lock"
 . $TS_TOPDIR/functions.sh
 ts_init "$*"
 ts_skip_nonroot
+
+if [ ! -x "$TS_CMD_MTABLOCK" ]; then
+	ts_skip "not compiled"
+fi
 
 #
 # Be careful with number of processes. Don't forget that there is time limit

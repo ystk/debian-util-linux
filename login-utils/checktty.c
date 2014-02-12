@@ -7,7 +7,6 @@
 
 */
 
-#include <sys/types.h>
 #include <sys/param.h>
 
 #include <pwd.h>
@@ -15,13 +14,17 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <time.h>
 #include <sys/stat.h>
-#include <malloc.h>
 #include <netdb.h>
-#include <sys/syslog.h>
+#include <syslog.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <ctype.h>
+#include <limits.h>
+#include <netinet/in.h>
 #include "nls.h"
 
 #include <sys/sysmacros.h>
@@ -31,13 +34,13 @@
 
 #include "pathnames.h"
 #include "login.h"
-#include "xstrncpy.h"
+#include "strutils.h"
 
 #ifndef TTY_MAJOR
 #define TTY_MAJOR 4
 #endif
 
-static gid_t mygroups[NGROUPS];
+static gid_t mygroups[NGROUPS_MAX];
 static int   num_groups;
 
 #define NAMELEN 128
@@ -76,9 +79,9 @@ am_in_group(char *group)
 }
 
 static void
-find_groups(gid_t defgrp, const char *user)
+find_groups()
 {
-	num_groups = getgroups(NGROUPS, mygroups);
+	num_groups = getgroups(NGROUPS_MAX, mygroups);
 }
 
 static struct ttyclass *
@@ -235,15 +238,15 @@ hnmatch_ip6(const char *pat)
 	/* compare */
 	while (mask_len > 0) {
 		if (mask_len < 32) {
-			u_int32_t mask = htonl(~(0xffffffff >> mask_len));
+			uint32_t mask = htonl(~(0xffffffff >> mask_len));
 
-			if ((*(u_int32_t *)&addr.s6_addr[i] & mask) !=
-			    (*(u_int32_t *)&net.sin6_addr.s6_addr[i] & mask))
+			if ((*(uint32_t *)&addr.s6_addr[i] & mask) !=
+			    (*(uint32_t *)&net.sin6_addr.s6_addr[i] & mask))
 				goto mismatch;
 			break;
 		}
-		if (*(u_int32_t *)&addr.s6_addr[i] !=
-		    *(u_int32_t *)&net.sin6_addr.s6_addr[i])
+		if (*(uint32_t *)&addr.s6_addr[i] !=
+		    *(uint32_t *)&net.sin6_addr.s6_addr[i])
 			goto mismatch;
 		i += 4;
 		mask_len -= 32;
@@ -287,11 +290,20 @@ hnmatch(const char *hn, const char *pat)
 char	hostaddress[16];
 sa_family_t hostfamily;
 char	*hostname;
-void	sleepexit(int eval) {}		/* dummy for this test */
-void	badlogin(const char *s) {}	/* dummy for this test */
+
+void sleepexit(int eval __attribute__ ((__unused__)))
+{
+	/* dummy for this test */
+}
+
+void badlogin(const char *s __attribute__ ((__unused__)))
+{
+	/* dummy for this test */
+}
 
 int
-main(int argc, char **argv)
+main(int argc __attribute__ ((__unused__)),
+     char **argv __attribute__ ((__unused__)))
 {
 	struct addrinfo hints, *info = NULL;
 	struct addrexp {
@@ -321,13 +333,13 @@ main(int argc, char **argv)
 		if (getaddrinfo(item->ip, NULL, &hints, &info)==0 && info) {
 			if (info->ai_family == AF_INET)	{
 			    struct sockaddr_in *sa =
-				    	(struct sockaddr_in *) info->ai_addr;
+					(struct sockaddr_in *) info->ai_addr;
 			    memcpy(hostaddress, &(sa->sin_addr),
 					sizeof(sa->sin_addr));
 			}
 			else if (info->ai_family == AF_INET6) {
 			    struct sockaddr_in6 *sa =
-				    	(struct sockaddr_in6 *) info->ai_addr;
+					(struct sockaddr_in6 *) info->ai_addr;
 			    memcpy(hostaddress, &(sa->sin6_addr),
 					sizeof(sa->sin6_addr));
 			}
@@ -340,7 +352,7 @@ main(int argc, char **argv)
 			printf("getaddrinfo() failed\n");
 
 	}
-	return 0;
+	return EXIT_SUCCESS;
 }
 #endif /* MAIN_TEST_CHECKTTY */
 
@@ -492,7 +504,7 @@ checktty(const char *user, const char *tty, struct passwd *pwd)
 	return;  /* misspelled username handled elsewhere */
     }
 
-    find_groups(pwd->pw_gid, user);
+    find_groups();
 
     defaultbuf[0] = 0;
     while(fgets(buf, 255, f)) {
@@ -553,7 +565,7 @@ checktty(const char *user, const char *tty, struct passwd *pwd)
 	/* there was a default rule, but user didn't match, reject! */
 	printf(_("Login on %s from %s denied by default.\n"), tty, hostname);
 	badlogin(user);
-	sleepexit(1);
+	sleepexit(EXIT_FAILURE);
     }
 
     if (found_match) {
@@ -564,7 +576,7 @@ checktty(const char *user, const char *tty, struct passwd *pwd)
 
 	printf(_("Login on %s from %s denied.\n"), tty, hostname);
 	badlogin(user);
-	sleepexit(1);
+	sleepexit(EXIT_FAILURE);
     }
 
     /* users not matched in /etc/usertty are by default allowed access
